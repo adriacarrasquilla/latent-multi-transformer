@@ -151,14 +151,14 @@ class Trainer(nn.Module):
     def log_image(self, logger, w, n_iter):
         with torch.no_grad():
             self.get_image(w)
-        logger.log_images('image_'+self.attr+'/iter'+str(n_iter+1)+'_input', clip_img(downscale(self.x_0, 2)), n_iter + 1)
-        logger.log_images('image_'+self.attr+'/iter'+str(n_iter+1)+'_modif', clip_img(downscale(self.x_1, 2)), n_iter + 1)
+        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+'_input', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+'_modif', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
         
     def log_loss(self, logger, n_iter):
-        logger.log_value('loss_'+self.attr+'/class', self.loss_pb.item(), n_iter + 1)
-        logger.log_value('loss_'+self.attr+'/latent_recon', self.loss_recon.item(), n_iter + 1)
-        logger.log_value('loss_'+self.attr+'/attr_reg', self.loss_reg.item(), n_iter + 1)
-        logger.log_value('loss_'+self.attr+'/total', self.loss.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attr+'/class', self.loss_pb.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attr+'/latent_recon', self.loss_recon.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attr+'/attr_reg', self.loss_reg.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attr+'/total', self.loss.item(), n_iter + 1)
 
     def save_image(self, log_dir, n_iter):
         utils.save_image(clip_img(self.x_0), log_dir + 'iter' +str(n_iter+1)+ '_img.jpg')

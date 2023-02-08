@@ -15,7 +15,7 @@ import yaml
 
 from PIL import Image
 from torchvision import transforms, utils
-from tensorboard_logger import Logger
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from datasets import *
 from trainer import *
@@ -52,7 +52,8 @@ attr_dict = {'5_o_Clock_Shadow': 0, 'Arched_Eyebrows': 1, 'Attractive': 2, 'Bags
 log_dir = os.path.join(opts.log_path, opts.config) + '/'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
-logger = Logger(log_dir)
+
+logger = SummaryWriter(log_dir=log_dir)
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
 attr_l = config['attr'].split(',')
@@ -89,8 +90,8 @@ for attr in attr_l:
 
             if (total_iter+1) % config['log_iter'] == 0:
                 trainer.log_loss(logger, total_iter)
-            # if (total_iter+1) % config['image_log_iter'] == 0:
-            #     trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+            if (total_iter+1) % config['image_log_iter'] == 0:
+                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
             total_iter += 1
 
         trainer.save_model(log_dir)
