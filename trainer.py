@@ -29,8 +29,10 @@ class Trainer(nn.Module):
         # Load Hyperparameters
         self.accumulation_steps = 16
         self.config = config
-        self.attr_num = attr_num
-        self.attr = attr
+        self.attr_nums= attr_num
+        self.attrs = attr
+        self.attr_num = attr_num[0]
+        self.attr = attr[0]
         mapping_lrmul = self.config['mapping_lrmul']
         mapping_layers = self.config['mapping_layers']
         mapping_fmaps = self.config['mapping_fmaps']
@@ -74,7 +76,7 @@ class Trainer(nn.Module):
     
     def BCEloss(self, x, target, reduction='mean'):
         return nn.BCEWithLogitsLoss(reduction=reduction)(x, target)
-    
+
     def GAN_loss(self, x, real=True):
         if real:
             target = torch.ones(x.size()).type_as(x)
@@ -96,14 +98,16 @@ class Trainer(nn.Module):
         sign_1 = F.relu(0.5-x).sign()
         return sign_0*(-x) + sign_1*(1-x)
 
-    def compute_loss(self, w, mask_input, n_iter):
+    def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
         lbl_0 = F.sigmoid(predict_lbl_0)
-        attr_pb_0 = lbl_0[:, self.attr_num]
+        attr_pb_0 = lbl_0[:, self.attr_nums]
+
         # Get scaling factor
         coeff = self.get_coeff(attr_pb_0)
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
         # Apply latent transformation
@@ -114,6 +118,47 @@ class Trainer(nn.Module):
         # Pb loss
         T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
         F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+
+        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        self.loss_pb = self.BCEloss(predict_lbl_1[:, self.attr_num], target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.loss_pb.mean()
+
+        # Latent code recon
+        self.loss_recon = self.MSEloss(self.w_1, self.w_0)
+
+        # Reg loss
+        threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
+        mask = torch.tensor(self.get_correlation(self.attr_num, threshold=threshold_val)).type_as(predict_lbl_0)
+        mask = mask.repeat(predict_lbl_0.size(0), 1)
+        self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
+        
+        # Total loss
+        w_recon, w_pb, w_reg = self.config['w']['recon'], self.config['w']['pb'], self.config['w']['reg']
+        self.loss =  w_pb * self.loss_pb + w_recon*self.loss_recon + w_reg * self.loss_reg
+
+        return self.loss
+
+    def compute_loss(self, w, mask_input, n_iter):
+        self.w_0 = w
+        predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
+        lbl_0 = F.sigmoid(predict_lbl_0)
+        attr_pb_0 = lbl_0[:, self.attr_num]
+
+        # Get scaling factor
+        coeff = self.get_coeff(attr_pb_0)
+        target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
+        if 'alpha' in self.config and not self.config['alpha']:
+            coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
+        # Apply latent transformation
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff)
+        self.w_1 = self.w_1.view(w.size())
+        predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
+
+        # Pb loss
+        T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+        F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+
         mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
         self.loss_pb = self.BCEloss(predict_lbl_1[:, self.attr_num], target_pb, reduction='none')*mask_pb
         self.loss_pb = self.loss_pb.mean()
@@ -192,6 +237,6 @@ class Trainer(nn.Module):
     def update(self, w, mask, n_iter):
         self.n_iter = n_iter
         self.optimizer.zero_grad()
-        self.compute_loss(w, mask, n_iter).backward()
+        self.compute_loss_multi(w, mask, n_iter).backward()
         self.optimizer.step()
         
