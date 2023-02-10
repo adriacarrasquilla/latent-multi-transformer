@@ -72,15 +72,17 @@ attr_it = iter(attr_l)
 for attr1 in attr_it:
     print(f"Training attribute {attr1}")
 
-    attr2 = next(attr_it)
+    # attr2 = next(attr_it)
+    attr1 = 'Smiling'
+    attr2 = None
 
     print(attr1, attr2)
     # Using this as a mock for multi attribute loading
     attrs = [attr1, attr2]
     
     total_iter = 0
-    # attr_num = attr_dict[attr1]
-    attr_num = [attr_dict[attr1], attr_dict[attr2]]
+    attr_num = attr_dict[attr1]
+    # attr_num = [attr_dict[attr1], attr_dict[attr2]]
 
     # Initialize trainer
     trainer = Trainer(config, attr_num, attr1, opts.label_file)
@@ -107,4 +109,5 @@ for attr1 in attr_it:
         times.append(e_time)
         print(f"Time for epoch {n_epoch}: {e_time}")
 
-print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")
+    print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")
+    break

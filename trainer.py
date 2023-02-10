@@ -31,8 +31,10 @@ class Trainer(nn.Module):
         self.config = config
         self.attr_nums= attr_num
         self.attrs = attr
-        self.attr_num = attr_num[0]
-        self.attr = attr[0]
+        self.attr_num = attr_num
+        self.attr = attr
+        # self.attr_num = attr_num[0]
+        # self.attr = attr[0]
         mapping_lrmul = self.config['mapping_lrmul']
         mapping_layers = self.config['mapping_layers']
         mapping_fmaps = self.config['mapping_fmaps']
@@ -237,6 +239,6 @@ class Trainer(nn.Module):
     def update(self, w, mask, n_iter):
         self.n_iter = n_iter
         self.optimizer.zero_grad()
-        self.compute_loss_multi(w, mask, n_iter).backward()
+        self.compute_loss(w, mask, n_iter).backward()
         self.optimizer.step()
         
