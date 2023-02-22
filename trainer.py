@@ -41,7 +41,10 @@ class Trainer(nn.Module):
         mapping_nonlinearity = self.config['mapping_nonlinearity']
         # Networks
         # Latent Transformer
-        self.T_net = F_mapping(mapping_lrmul= mapping_lrmul, mapping_layers=mapping_layers, mapping_fmaps=mapping_fmaps, mapping_nonlinearity = mapping_nonlinearity)
+        self.T_net = F_mapping(mapping_lrmul= mapping_lrmul,
+                               mapping_layers=mapping_layers,
+                               mapping_fmaps=mapping_fmaps,
+                               mapping_nonlinearity = mapping_nonlinearity)
         # Latent Classifier
         self.Latent_Classifier = LCNet([9216, 2048, 512, 40], activ='leakyrelu')
         # StyleGAN Model
@@ -52,8 +55,13 @@ class Trainer(nn.Module):
 
         # Optimizers
         self.params = list(self.T_net.parameters())
-        self.optimizer = torch.optim.Adam(self.params, lr=config['lr'], betas=(config['beta_1'], config['beta_2']), weight_decay=config['weight_decay'])
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=config['step_size'], gamma=config['gamma'])
+
+        self.optimizer = torch.optim.Adam(self.params, lr=config['lr'],
+                                          betas=(config['beta_1'], config['beta_2']),
+                                          weight_decay=config['weight_decay'])
+
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=config['step_size'],
+                                                         gamma=config['gamma'])
 
     def initialize(self, stylegan_model_path, classifier_model_path):
         state_dict = torch.load(stylegan_model_path, map_location='cpu')
@@ -103,7 +111,7 @@ class Trainer(nn.Module):
     def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
-        lbl_0 = F.sigmoid(predict_lbl_0)
+        lbl_0 = torch.sigmoid(predict_lbl_0)
         attr_pb_0 = lbl_0[:, self.attr_nums]
 
         # Get scaling factor

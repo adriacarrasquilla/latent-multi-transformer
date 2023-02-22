@@ -73,7 +73,7 @@ for attr1 in attr_it:
     print(f"Training attribute {attr1}")
 
     # attr2 = next(attr_it)
-    attr1 = 'Smiling'
+    # attr1 = 'Smiling'
     attr2 = None
 
     print(attr1, attr2)
@@ -102,6 +102,8 @@ for attr1 in attr_it:
                 trainer.log_loss(logger, total_iter)
             if (total_iter+1) % config['image_log_iter'] == 0:
                 trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+                # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
+
             total_iter += 1
 
         trainer.save_model(log_dir)

@@ -63,7 +63,7 @@ def latent_manipulation(opts, latent_dir_path, process_dir_path):
     with torch.no_grad():
 
         log_dir = os.path.join(opts.log_path, opts.config) + '/'
-        config = yaml.load(open('./configs/' + opts.config + '.yaml', 'r'))
+        config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
         
         # Initialize trainer
         trainer = Trainer(config, None, None, opts.label_file)

@@ -30,7 +30,7 @@ device = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='001', help='Path to the config file.')
-parser.add_argument('--attr', type=str, default='Eyeglasses', help='attribute for manipulation.')
+parser.add_argument('--attr', type=str, default='Smiling', help='attribute for manipulation.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -50,7 +50,7 @@ attr_dict = {'5_o_Clock_Shadow': 0, 'Arched_Eyebrows': 1, 'Attractive': 2, 'Bags
             'Wearing_Hat': 35, 'Wearing_Lipstick': 36, 'Wearing_Necklace': 37, 'Wearing_Necktie': 38, 'Young': 39}
 
 
-n_steps = 7
+n_steps = 20
 scale = 1.5
 
 with torch.no_grad():
@@ -90,12 +90,14 @@ with torch.no_grad():
 
         range_alpha = torch.linspace(-scale, scale, n_steps)
         for i, alpha in enumerate(range_alpha):
-
             w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), alpha.unsqueeze(0).to(device))
             w_1 = w_1.view(w_0.size())
             w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
             x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
             img_l.append(x_1.data)
+            # Uncomment to save every single modification for each alpha
+            # utils.save_image(clip_img(torch.cat([x_1.data], dim=3)), save_dir + attr + '_' + '%05d.jpg'%i)
 
         out = torch.cat(img_l, dim=3)
         utils.save_image(clip_img(out), save_dir + attr + '_' + '%05d.jpg'%idx)
+        # exit()  # uncomment if you only want the first image

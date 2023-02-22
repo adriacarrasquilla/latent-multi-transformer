@@ -65,7 +65,7 @@ with torch.no_grad():
     os.makedirs(save_dir, exist_ok=True)
 
     log_dir = os.path.join(opts.log_path, opts.config) + '/'
-    config = yaml.load(open('./configs/' + opts.config + '.yaml', 'r'))
+    config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
 
     # Initialize trainer
     trainer = Trainer(config, None, None, opts.label_file)
