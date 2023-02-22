@@ -28,7 +28,7 @@ Image.MAX_IMAGE_PIXELS = None
 device = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='001', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='debug', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -83,7 +83,7 @@ for attr1 in attr_it:
     total_iter = 0
     attr_num = attr_dict[attr1]
     # attr_num = [attr_dict[attr1], attr_dict[attr2]]
-
+    attr1 = "TEST"
     # Initialize trainer
     trainer = Trainer(config, attr_num, attr1, opts.label_file)
     trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   

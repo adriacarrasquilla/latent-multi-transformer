@@ -23,6 +23,9 @@ sys.path.append('pixel2style2pixel/')
 from pixel2style2pixel.models.stylegan2.model import Generator
 from pixel2style2pixel.models.psp import get_keys
 
+from attr_dict import NUM_TO_ATTR
+
+
 class Trainer(nn.Module):
     def __init__(self, config, attr_num, attr, label_file):
         super(Trainer, self).__init__()
@@ -99,7 +102,9 @@ class Trainer(nn.Module):
             lbls = np.load(self.label_file)
             self.corr_ma = np.corrcoef(lbls.transpose())
             self.corr_ma[np.isnan(self.corr_ma)] = 0
-        corr_vec = np.abs(self.corr_ma[attr_num:attr_num+1])
+        # corr_vec = np.abs(self.corr_ma[attr_num:attr_num+1]) # Original, below is the experimental one
+        attr_num = attr_num.cpu()
+        corr_vec = np.abs(self.corr_ma[attr_num, :])
         corr_vec[corr_vec>=threshold] = 1
         return 1 - corr_vec
 
@@ -108,11 +113,11 @@ class Trainer(nn.Module):
         sign_1 = F.relu(0.5-x).sign()
         return sign_0*(-x) + sign_1*(1-x)
 
-    def compute_loss_multi(self, w, mask_input, n_iter):
+    def compute_loss(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
         lbl_0 = torch.sigmoid(predict_lbl_0)
-        attr_pb_0 = lbl_0[:, self.attr_nums]
+        attr_pb_0 = lbl_0[:, self.attr_num]
 
         # Get scaling factor
         coeff = self.get_coeff(attr_pb_0)
@@ -148,11 +153,12 @@ class Trainer(nn.Module):
 
         return self.loss
 
-    def compute_loss(self, w, mask_input, n_iter):
+    def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
-        lbl_0 = F.sigmoid(predict_lbl_0)
-        attr_pb_0 = lbl_0[:, self.attr_num]
+        lbl_0 = torch.sigmoid(predict_lbl_0)
+        self.attr_num = torch.argmax(lbl_0, axis=1)
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
 
         # Get scaling factor
         coeff = self.get_coeff(attr_pb_0)
@@ -160,6 +166,7 @@ class Trainer(nn.Module):
 
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
+
         # Apply latent transformation
         self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff)
         self.w_1 = self.w_1.view(w.size())
@@ -170,7 +177,8 @@ class Trainer(nn.Module):
         F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
 
         mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
-        self.loss_pb = self.BCEloss(predict_lbl_1[:, self.attr_num], target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_num],
+                                    target_pb, reduction='none')*mask_pb
         self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon
@@ -179,7 +187,7 @@ class Trainer(nn.Module):
         # Reg loss
         threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
         mask = torch.tensor(self.get_correlation(self.attr_num, threshold=threshold_val)).type_as(predict_lbl_0)
-        mask = mask.repeat(predict_lbl_0.size(0), 1)
+        # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
         self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
         
         # Total loss
@@ -192,9 +200,14 @@ class Trainer(nn.Module):
         # Original image
         predict_lbl_0 = self.Latent_Classifier(w.view(w.size(0), -1))
         lbl_0 = F.sigmoid(predict_lbl_0)
-        attr_pb_0 = lbl_0[:, self.attr_num]
+        # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
+        self.attr_num = torch.argmax(lbl_0, axis=1)
+        self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
+
         coeff = self.get_coeff(attr_pb_0)
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
 
@@ -206,8 +219,8 @@ class Trainer(nn.Module):
     def log_image(self, logger, w, n_iter):
         with torch.no_grad():
             self.get_image(w)
-        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+'_input', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
-        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+'_modif', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
+        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
         
     def log_loss(self, logger, n_iter):
         logger.add_scalar('loss_'+self.attr+'/class', self.loss_pb.item(), n_iter + 1)
@@ -247,6 +260,6 @@ class Trainer(nn.Module):
     def update(self, w, mask, n_iter):
         self.n_iter = n_iter
         self.optimizer.zero_grad()
-        self.compute_loss(w, mask, n_iter).backward()
+        self.compute_loss_multi(w, mask, n_iter).backward()
         self.optimizer.step()
         
