@@ -228,9 +228,11 @@ class Trainer(nn.Module):
         logger.add_scalar('loss_'+self.attr+'/attr_reg', self.loss_reg.item(), n_iter + 1)
         logger.add_scalar('loss_'+self.attr+'/total', self.loss.item(), n_iter + 1)
 
-    def save_image(self, log_dir, n_iter):
-        utils.save_image(clip_img(self.x_0), log_dir + 'iter' +str(n_iter+1)+ '_img.jpg')
-        utils.save_image(clip_img(self.x_1), log_dir + 'iter' +str(n_iter+1)+ '_img_modif.jpg')        
+    def save_image(self, log_dir, w, n_iter):
+        with torch.no_grad():
+            self.get_image(w)
+        utils.save_image(clip_img(self.x_0), log_dir + 'iter' +str(n_iter+1) + f'_input_{self.local_attr}' + '.jpg')
+        utils.save_image(clip_img(self.x_1), log_dir + 'iter' +str(n_iter+1) + f'_modif_{self.local_attr}' + '.jpg')        
 
     def save_model(self, log_dir):
         torch.save(self.T_net.state_dict(),log_dir + '/tnet_' + str(self.attr_num) +'.pth.tar')
