@@ -3,7 +3,7 @@ resolution: 1024
 age_min: 20                  
 age_max: 70  
 # Training hyperparameters                 
-batch_size: 32                 
+batch_size: 1
 epochs: 10
 truncation_psi: 0.5
 # Optimizer parameters               

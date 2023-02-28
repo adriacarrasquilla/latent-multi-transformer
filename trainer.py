@@ -32,10 +32,15 @@ class Trainer(nn.Module):
         # Load Hyperparameters
         self.accumulation_steps = 16
         self.config = config
-        self.attr_nums= attr_num
+
+        # For multi label
+        self.attr_nums = attr_num
         self.attrs = attr
-        self.attr_num = attr_num
-        self.attr = attr
+
+        # for single label
+        self.attr_num = attr_num[0]
+        self.attr = attr[0]
+
         # self.attr_num = attr_num[0]
         # self.attr = attr[0]
         mapping_lrmul = self.config['mapping_lrmul']
@@ -44,7 +49,7 @@ class Trainer(nn.Module):
         mapping_nonlinearity = self.config['mapping_nonlinearity']
         # Networks
         # Latent Transformer
-        self.T_net = F_mapping(mapping_lrmul= mapping_lrmul,
+        self.T_net = F_mapping_multi(mapping_lrmul= mapping_lrmul,
                                mapping_layers=mapping_layers,
                                mapping_fmaps=mapping_fmaps,
                                mapping_nonlinearity = mapping_nonlinearity)
@@ -103,7 +108,8 @@ class Trainer(nn.Module):
             self.corr_ma = np.corrcoef(lbls.transpose())
             self.corr_ma[np.isnan(self.corr_ma)] = 0
         # corr_vec = np.abs(self.corr_ma[attr_num:attr_num+1]) # Original, below is the experimental one
-        attr_num = attr_num.cpu()
+        # Enable this again for exp
+        # attr_num = attr_num.cpu()
         corr_vec = np.abs(self.corr_ma[attr_num, :])
         corr_vec[corr_vec>=threshold] = 1
         return 1 - corr_vec
@@ -153,7 +159,7 @@ class Trainer(nn.Module):
 
         return self.loss
 
-    def compute_loss_multi(self, w, mask_input, n_iter):
+    def compute_loss_multi_experiment(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
         lbl_0 = torch.sigmoid(predict_lbl_0)
@@ -187,6 +193,49 @@ class Trainer(nn.Module):
         # Reg loss
         threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
         mask = torch.tensor(self.get_correlation(self.attr_num, threshold=threshold_val)).type_as(predict_lbl_0)
+        # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
+        self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
+        
+        # Total loss
+        w_recon, w_pb, w_reg = self.config['w']['recon'], self.config['w']['pb'], self.config['w']['reg']
+        self.loss =  w_pb * self.loss_pb + w_recon*self.loss_recon + w_reg * self.loss_reg
+
+        return self.loss
+
+    def compute_loss_multi(self, w, mask_input, n_iter):
+        self.w_0 = w
+        predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
+        lbl_0 = torch.sigmoid(predict_lbl_0)
+
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
+
+        # Get scaling factor
+        coeff = self.get_coeff(attr_pb_0)
+        target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
+        if 'alpha' in self.config and not self.config['alpha']:
+            coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
+
+        # Apply latent transformation
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0))
+        self.w_1 = self.w_1.view(w.size())
+        predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
+
+        # Pb loss
+        T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+        F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+
+        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+                                    target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.loss_pb.mean()
+
+        # Latent code recon
+        self.loss_recon = self.MSEloss(self.w_1, self.w_0)
+
+        # Reg loss
+        threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
+        mask = torch.tensor(self.get_correlation(self.attr_nums[0], threshold=threshold_val)).type_as(predict_lbl_0)
         # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
         self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
         

@@ -72,20 +72,21 @@ attr_it = iter(attr_l)
 for attr1 in attr_it:
     print(f"Training attribute {attr1}")
 
-    # attr2 = next(attr_it)
+    attr2 = next(attr_it)
     # attr1 = 'Smiling'
-    attr2 = None
+    # attr2 = None
 
     print(attr1, attr2)
     # Using this as a mock for multi attribute loading
     attrs = [attr1, attr2]
     
     total_iter = 0
-    attr_num = attr_dict[attr1]
-    # attr_num = [attr_dict[attr1], attr_dict[attr2]]
-    attr1 = "TEST"
+    # attr_num = attr_dict[attr1]
+    attr_num = [attr_dict[attr1], attr_dict[attr2]]
+    # attr1 = "TEST"
     # Initialize trainer
-    trainer = Trainer(config, attr_num, attr1, opts.label_file)
+    # trainer = Trainer(config, attr_num, attr1, opts.label_file)
+    trainer = Trainer(config, attr_num, attrs, opts.label_file)
     trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
     trainer.to(device)
 
