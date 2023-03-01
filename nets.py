@@ -156,7 +156,7 @@ class F_mapping_multi(nn.Module):
     def forward(self, latents_in, coeffs):
         # Inputs.
         # coeffs = torch.tensor([[3,0]]).to(torch.device('cuda'))
-        coeffs = torch.tensor([[3,0]]).to(torch.device('cuda'))
+        # coeffs = torch.tensor([[3,0]]).to(torch.device('cuda'))
 
         latents_in = latents_in.type(self.dtype)
         

@@ -17,15 +17,21 @@ from PIL import Image
 from torchvision import transforms, utils
 from torch.utils.tensorboard.writer import SummaryWriter
 
+# Set up to allow both gpu and cpu runtimes
+torch.autograd.set_detect_anomaly(True)
+Image.MAX_IMAGE_PIXELS = None
+if torch.cuda.is_available():
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    device = torch.device('cuda')
+else:
+    os.environ["TORCH_CUDA_ARCH_LIST"] = "Turing"
+    device = torch.device('cpu')
+
 from datasets import *
 from trainer import *
 
-torch.backends.cudnn.enabled = True
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = True
-torch.autograd.set_detect_anomaly(True)
-Image.MAX_IMAGE_PIXELS = None
-device = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='debug', help='Path to the config file.')
@@ -94,7 +100,7 @@ for attr1 in attr_it:
         t = time.time()
 
         for n_iter, list_A in enumerate(loader_A):
-
+            print(f"Iter {n_iter}")
             w_A, lbl_A = list_A
             w_A, lbl_A = w_A.to(device), lbl_A.to(device)
             trainer.update(w_A, None, n_iter)

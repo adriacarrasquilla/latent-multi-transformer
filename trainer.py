@@ -25,6 +25,8 @@ from pixel2style2pixel.models.psp import get_keys
 
 from attr_dict import NUM_TO_ATTR
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 
 class Trainer(nn.Module):
     def __init__(self, config, attr_num, attr, label_file):
@@ -74,7 +76,7 @@ class Trainer(nn.Module):
     def initialize(self, stylegan_model_path, classifier_model_path):
         state_dict = torch.load(stylegan_model_path, map_location='cpu')
         self.StyleGAN.load_state_dict(get_keys(state_dict, 'decoder'), strict=True)
-        self.Latent_Classifier.load_state_dict(torch.load(classifier_model_path))
+        self.Latent_Classifier.load_state_dict(torch.load(classifier_model_path, map_location=device))
         self.Latent_Classifier.eval()
 
     def L1loss(self, input, target):
@@ -252,7 +254,8 @@ class Trainer(nn.Module):
         # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
         self.attr_num = torch.argmax(lbl_0, axis=1)
         self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
-        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
+        # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
 
         coeff = self.get_coeff(attr_pb_0)
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
@@ -260,7 +263,7 @@ class Trainer(nn.Module):
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
 
-        w_1 = self.T_net(w.view(w.size(0), -1), coeff)
+        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0))
         w_1 = w_1.view(w.size())
         self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
         self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
@@ -299,10 +302,10 @@ class Trainer(nn.Module):
             torch.save(checkpoint_state, '{:s}/checkpoint'.format(log_dir))
     
     def load_model(self, log_dir):
-        self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar'))
+        self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar', map_location=device))
 
     def load_checkpoint(self, checkpoint_path):
-        state_dict = torch.load(checkpoint_path)
+        state_dict = torch.load(checkpoint_path, map_location=device)
         self.T_net.load_state_dict(state_dict['T_net_state_dict'])
         self.optimizer.load_state_dict(state_dict['opt_state_dict'])
         self.scheduler.load_state_dict(state_dict['scheduler_state_dict'])
