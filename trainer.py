@@ -51,10 +51,13 @@ class Trainer(nn.Module):
         mapping_nonlinearity = self.config['mapping_nonlinearity']
         # Networks
         # Latent Transformer
-        self.T_net = F_mapping_multi(mapping_lrmul= mapping_lrmul,
-                               mapping_layers=mapping_layers,
-                               mapping_fmaps=mapping_fmaps,
-                               mapping_nonlinearity = mapping_nonlinearity)
+        self.T_net = F_mapping_multi(
+            mapping_lrmul= mapping_lrmul,
+            mapping_layers=mapping_layers,
+            mapping_fmaps=mapping_fmaps,
+            mapping_nonlinearity = mapping_nonlinearity,
+            n_attributes=len(self.attrs)
+        )
         # Latent Classifier
         self.Latent_Classifier = LCNet([9216, 2048, 512, 40], activ='leakyrelu')
         # StyleGAN Model
@@ -96,6 +99,9 @@ class Trainer(nn.Module):
     
     def BCEloss(self, x, target, reduction='mean'):
         return nn.BCEWithLogitsLoss(reduction=reduction)(x, target)
+
+    def MultiLabelLoss(self, x, target, reduction='mean'):
+        return nn.MultiLabelSoftMarginLoss(reduction=reduction)(x, target)
 
     def GAN_loss(self, x, real=True):
         if real:
@@ -223,14 +229,21 @@ class Trainer(nn.Module):
         self.w_1 = self.w_1.view(w.size())
         predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
 
-        # Pb loss
-        T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
-        F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
 
-        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
-        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
-                                    target_pb, reduction='none')*mask_pb
-        self.loss_pb = self.loss_pb.mean()
+        # Pb loss
+        # self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+        #                             target_pb, reduction='mean')
+        self.loss_pb = self.MultiLabelLoss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+                                    target_pb, reduction='mean')
+
+        # Original loss_pb down here
+        # Pb loss
+        # T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+        # F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+        # mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        # self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+        #                             target_pb, reduction='none')*mask_pb
+        # self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon
         self.loss_recon = self.MSEloss(self.w_1, self.w_0)
@@ -273,6 +286,44 @@ class Trainer(nn.Module):
             self.get_image(w)
         logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
         logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
+
+    def get_image_verbose(self, w):
+        # Original image
+        predict_lbl_0 = self.Latent_Classifier(w.view(w.size(0), -1))
+        lbl_0 = F.sigmoid(predict_lbl_0)
+        # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
+        self.attr_num = torch.argmax(lbl_0, axis=1)
+        self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
+        # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
+
+        coeff = self.get_coeff(attr_pb_0)
+        target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
+        if 'alpha' in self.config and not self.config['alpha']:
+            coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
+
+        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0))
+        w_1 = w_1.view(w.size())
+        self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
+        self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+
+        predict_lbl_1 = self.Latent_Classifier(w_1.view(w.size(0), -1))
+
+        predict = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums]
+
+        return attr_pb_0, target_pb, predict
+
+    def log_image_verbose(self, logger, w, n_iter):
+        with torch.no_grad():
+            org, target, predict = self.get_image_verbose(w)
+        suffix = ""
+        for o, t, p in zip(org, target, predict):
+            suffix += f",org_{o.item():.2f},target_{t.item():.2f},pred_{p.item():.2f}"
+        # logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        # logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
+        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+'input', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+'modif'+suffix, clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
         
     def log_loss(self, logger, n_iter):
         logger.add_scalar('loss_'+self.attr+'/class', self.loss_pb.item(), n_iter + 1)

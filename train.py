@@ -34,7 +34,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='debug', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='multi_sum_loss2', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -82,13 +82,14 @@ for attr1 in attr_it:
     # attr1 = 'Smiling'
     # attr2 = None
 
-    print(attr1, attr2)
+    # attr1, attr2 = attr2, attr1
     # Using this as a mock for multi attribute loading
     attrs = [attr1, attr2]
     
     total_iter = 0
     # attr_num = attr_dict[attr1]
     attr_num = [attr_dict[attr1], attr_dict[attr2]]
+    print(attrs)
     # attr1 = "TEST"
     # Initialize trainer
     # trainer = Trainer(config, attr_num, attr1, opts.label_file)
@@ -100,7 +101,6 @@ for attr1 in attr_it:
         t = time.time()
 
         for n_iter, list_A in enumerate(loader_A):
-            print(f"Iter {n_iter}")
             w_A, lbl_A = list_A
             w_A, lbl_A = w_A.to(device), lbl_A.to(device)
             trainer.update(w_A, None, n_iter)
@@ -108,11 +108,15 @@ for attr1 in attr_it:
             if (total_iter+1) % config['log_iter'] == 0:
                 trainer.log_loss(logger, total_iter)
             if (total_iter+1) % config['image_log_iter'] == 0:
-                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+                # trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+                trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
 
             total_iter += 1
+
+            if n_iter == 500:
+                break
 
         trainer.save_model(log_dir)
         e_time = time.time() - t
