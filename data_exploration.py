@@ -3,12 +3,17 @@ import torch.utils.data as data
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 
 from datasets import *
 from nets import *
 
 from attr_dict import NUM_TO_ATTR
+
+import sys
+import numpy
+numpy.set_printoptions(threshold=sys.maxsize)
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -19,6 +24,14 @@ LatentClassifier.to(device)
 
 dataset_A = LatentDataset('./data/celebahq_dlatents_psp.npy', './data/celebahq_anno.npy', training_set=True)
 loader_A = data.DataLoader(dataset_A, batch_size=1, shuffle=True)
+
+my_gradient = LinearSegmentedColormap.from_list('my_gradient', (
+    (0.000, (0.157, 0.212, 0.094)),
+    (0.250, (0.376, 0.424, 0.220)),
+    (0.500, (0.996, 0.980, 0.878)),
+    (0.750, (0.867, 0.631, 0.369)),
+    (1.000, (0.737, 0.424, 0.145)))
+)
 
 
 def classifier_distribution():
@@ -110,6 +123,29 @@ def data_distribution():
 
     plt.tight_layout()
     plt.xticks(rotation=90)
-    plt.savefig("test.png", bbox_inches="tight")
+    plt.savefig("out_images/data_distribution.png", bbox_inches="tight")
 
-data_distribution()
+
+def plot_correlation():
+    corr_ma = np.load("corr.npy")
+    labels = [NUM_TO_ATTR[l] for l in range(len(NUM_TO_ATTR))]
+    fig, ax = plt.subplots(figsize=(20,20))
+    im = ax.imshow(corr_ma, cmap=my_gradient)
+    ax.set_xticks(np.arange(len(labels)), labels=labels, fontsize=14)
+    ax.set_yticks(np.arange(len(labels)), labels=labels, fontsize=14)
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            if corr_ma[i,j] <= -0.3:
+                color = "w"
+            elif 0.3 > corr_ma[i,j] > -0.3:
+                color = "#888888"
+            else:
+                color = "#282828"
+            text = ax.text(j, i, f"{corr_ma[i, j]:.1f}", ha="center", va="center", color=color, fontsize=12)
+
+    fig.tight_layout()
+    plt.savefig("out_images/correlation.png", bbox_inches="tight")
+
+if __name__ == "__main__":
+    plot_correlation()
