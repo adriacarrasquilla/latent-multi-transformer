@@ -219,6 +219,7 @@ class Trainer(nn.Module):
 
         # Get scaling factor
         coeff = self.get_coeff(attr_pb_0)
+        # coeff = torch.tensor([-1,-1]).to(device)
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
 
         if 'alpha' in self.config and not self.config['alpha']:
@@ -229,21 +230,20 @@ class Trainer(nn.Module):
         self.w_1 = self.w_1.view(w.size())
         predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
 
-
-        # Pb loss
+        # Pb loss (experimental)
         # self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
         #                             target_pb, reduction='mean')
-        self.loss_pb = self.MultiLabelLoss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
-                                    target_pb, reduction='mean')
+        # self.loss_pb = self.MultiLabelLoss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+        #                             target_pb, reduction='mean')
 
         # Original loss_pb down here
         # Pb loss
-        # T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
-        # F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
-        # mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
-        # self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
-        #                             target_pb, reduction='none')*mask_pb
-        # self.loss_pb = self.loss_pb.mean()
+        T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+        F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+                                    target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon
         self.loss_recon = self.MSEloss(self.w_1, self.w_0)
@@ -265,8 +265,9 @@ class Trainer(nn.Module):
         predict_lbl_0 = self.Latent_Classifier(w.view(w.size(0), -1))
         lbl_0 = F.sigmoid(predict_lbl_0)
         # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
-        self.attr_num = torch.argmax(lbl_0, axis=1)
-        self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
+        # self.attr_num = torch.argmax(lbl_0, axis=1)
+        # self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
+        self.local_attr = "Bald"
         # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
         attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
 

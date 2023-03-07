@@ -108,15 +108,15 @@ for attr1 in attr_it:
             if (total_iter+1) % config['log_iter'] == 0:
                 trainer.log_loss(logger, total_iter)
             if (total_iter+1) % config['image_log_iter'] == 0:
-                # trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+                # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
 
             total_iter += 1
 
-            if n_iter == 500:
-                break
+            # if n_iter == 500:
+            #     break
 
         trainer.save_model(log_dir)
         e_time = time.time() - t
@@ -124,4 +124,3 @@ for attr1 in attr_it:
         print(f"Time for epoch {n_epoch}: {e_time}")
 
     print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")
-    break
