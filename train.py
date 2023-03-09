@@ -115,8 +115,8 @@ for attr1 in attr_it:
 
             total_iter += 1
 
-            # if n_iter == 500:
-            #     break
+            if n_iter == 500:
+                break
 
         trainer.save_model(log_dir)
         e_time = time.time() - t

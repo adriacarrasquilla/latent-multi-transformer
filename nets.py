@@ -169,10 +169,12 @@ class F_mapping_multi(nn.Module):
         x = torch.cat(out, dim=1)
         x = torch.cat((x, coeffs), dim=1)
 
-        x = apply_bias_act(self.fc(x))
+        # x = apply_bias_act(self.fc(x))
+        x = self.fc(x)
 
         # coeffs = coeffs.view(x.size(0), -1)
         # x = coeffs * x + latents_in
+        # x = coeffs[0][0] * x + latents_in
         x = x + latents_in
         
         # Output.

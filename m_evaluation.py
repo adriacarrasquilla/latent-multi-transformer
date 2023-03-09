@@ -35,7 +35,7 @@ device = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='multi_sum_loss2', help='Path to the config file.')
-parser.add_argument('--attr', type=str, default='No_Beard', help='attribute for manipulation.')
+parser.add_argument('--attr', type=str, default='No_Beard,Chubby', help='attribute for manipulation.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -60,7 +60,7 @@ attr_dict = {'5_o_Clock_Shadow': 0, 'Arched_Eyebrows': 1, 'Attractive': 2, 'Bags
 ########################################################################################################################
 
 # Load input latent codes
-testdata_dir = '/srv/tacm/users/yaox/ffhq_latents_psp/'
+testdata_dir = '/home/adri/Projects/latent-transformer/data/test/'
 n_steps = 11
 scale = 2.0
 
@@ -72,32 +72,38 @@ with torch.no_grad():
     log_dir = os.path.join(opts.log_path, opts.config) + '/'
     config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
 
+    attr1, attr2 = opts.attr.split(',')
+    attrs = [attr1, attr2]
+    attr_num = [attr_dict[attr1], attr_dict[attr2]]
+
     # Initialize trainer
-    trainer = Trainer(config, None, None, opts.label_file)
+    trainer = Trainer(config, attr_num, attrs, opts.label_file)
     trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
     trainer.to(device)
 
-    for attr in list(attr_dict.keys()):
+    trainer.load_model(log_dir)
+    
+    for k in range(1000):
 
-        attr_num = attr_dict[attr]
-        trainer.attr_num = attr_dict[attr]
-        trainer.load_model(log_dir)
-        
-        for k in range(1000):
+        w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
+        w_0 = torch.tensor(w_0).to(device)
 
-            w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
-            w_0 = torch.tensor(w_0).to(device)
+        predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
+        lbl_0 = F.sigmoid(predict_lbl_0)
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_num]
 
-            predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
-            lbl_0 = F.sigmoid(predict_lbl_0)
-            attr_pb_0 = lbl_0[:, attr_num]
-            coeff = -1 if attr_pb_0 > 0.5 else 1   
+        coeff = torch.zeros(attr_pb_0.size())
+        for i in range(len(attr_pb_0)):
+            coeff[i] = -1 if attr_pb_0[i] > 0.5 else 1
 
-            range_alpha = torch.linspace(0, scale*coeff, n_steps)
-            for i,alpha in enumerate(range_alpha):
-                
-                w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), alpha.unsqueeze(0).to(device))
-                w_1 = w_1.view(w_0.size())
-                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
-                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
-                utils.save_image(clip_img(x_1), save_dir + attr + '_%d'%k  + '_alpha_'+ str(i) + '.jpg')
+        range_alpha = torch.linspace(0, scale*coeff[0].item(), n_steps)
+        for i,alpha in enumerate(range_alpha):
+
+            coeff = torch.tensor([[alpha, alpha]]).to(device)
+            
+            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff) # , alpha.unsqueeze(0).to(device))
+            w_1 = w_1.view(w_0.size())
+            w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+            x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+            utils.save_image(clip_img(x_1), save_dir + attr1 + '_%d'%k  + '_alpha_'+ str(i) + '.jpg')
+        break
