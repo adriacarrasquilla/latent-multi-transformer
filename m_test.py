@@ -29,8 +29,8 @@ Image.MAX_IMAGE_PIXELS = None
 device = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='scaling', help='Path to the config file.')
-parser.add_argument('--attr', type=str, default='Male,Goatee', help='attribute for manipulation.')
+parser.add_argument('--config', type=str, default='reduction', help='Path to the config file.')
+parser.add_argument('--attr', type=str, default='No_Beard,Chubby', help='attribute for manipulation.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -90,7 +90,7 @@ with torch.no_grad():
         attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_num]
 
         range_alpha1 = torch.linspace(-scale, scale, n_steps)
-        range_alpha2 = torch.linspace(scale, -scale, n_steps)
+        range_alpha2 = torch.linspace(-scale, scale, n_steps)
         for i, (alpha1, alpha2) in enumerate(zip(range_alpha1, range_alpha2)):
             coeff = torch.tensor([[alpha1, alpha2]]).to(device)
             w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff)
@@ -102,5 +102,5 @@ with torch.no_grad():
             # utils.save_image(clip_img(torch.cat([x_1.data], dim=3)), save_dir + attr + '_' + '%05d.jpg'%i)
 
         out = torch.cat(img_l, dim=3)
-        utils.save_image(clip_img(out), save_dir + attr1 + '_' + '%05d.jpg'%idx)
+        utils.save_image(clip_img(out), save_dir + attr1 + '_' + '%05d_test.jpg'%idx)
         # exit()  # uncomment if you only want the first image

@@ -51,7 +51,7 @@ class Trainer(nn.Module):
         mapping_nonlinearity = self.config['mapping_nonlinearity']
         # Networks
         # Latent Transformer
-        self.T_net = F_mapping_multi(
+        self.T_net = F_mapping_multi2(
             mapping_lrmul= mapping_lrmul,
             mapping_layers=mapping_layers,
             mapping_fmaps=mapping_fmaps,

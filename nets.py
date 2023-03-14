@@ -208,7 +208,8 @@ class F_mapping_multi2(nn.Module):
             self.dense.append(Dense_layer(mapping_fmaps, mapping_fmaps, lrmul=mapping_lrmul))
 
         # Adding fully connected layer that will combine the coefficients and the transformer output
-        self.fc = Dense_layer(n_attributes * mapping_fmaps * mapping_layers, mapping_fmaps*mapping_layers)
+        self.fc0 = Dense_layer(mapping_fmaps * mapping_layers, mapping_fmaps)
+        self.fc = Dense_layer(n_attributes * mapping_fmaps, mapping_fmaps*mapping_layers)
         
     def forward(self, latents_in, coeffs):
         # Inputs.
@@ -224,6 +225,8 @@ class F_mapping_multi2(nn.Module):
             out.append(apply_bias_act(self.dense[layer_idx](x[layer_idx]), act='linear'))
 
         x = torch.cat(out, dim=1)
+        x = apply_bias_act(self.fc0(x))
+
         coeffs = coeffs.transpose(0,1)
         x = x * coeffs
         x = x.reshape(1, -1)
@@ -235,7 +238,6 @@ class F_mapping_multi2(nn.Module):
         # x = coeffs * x + latents_in
         x = x + latents_in
         
-        torch.cuda.empty_cache()
         # Output.
         assert x.dtype == self.dtype 
         return x
