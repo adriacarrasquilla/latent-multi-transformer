@@ -89,7 +89,7 @@ with torch.no_grad():
         w_0 = torch.tensor(w_0).to(device)
 
         predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
-        lbl_0 = F.sigmoid(predict_lbl_0)
+        lbl_0 = torch.sigmoid(predict_lbl_0)
         attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_num]
 
         coeff = torch.zeros(attr_pb_0.size())
