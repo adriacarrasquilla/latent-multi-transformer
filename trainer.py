@@ -345,6 +345,14 @@ class Trainer(nn.Module):
     def save_model(self, log_dir):
         torch.save(self.T_net.state_dict(),log_dir + '/tnet_' + str(self.attr_num) +'.pth.tar')
 
+    def save_model_multi(self, log_dir, name=None):
+        if name:
+            filename = log_dir + '/tnet_' + name +'.pth.tar'
+        else:
+            filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_nums) +'.pth.tar'
+
+        torch.save(self.T_net.state_dict(), filename)
+
     def save_checkpoint(self, n_epoch, log_dir):
         checkpoint_state = {
             'n_epoch': n_epoch,
@@ -359,6 +367,13 @@ class Trainer(nn.Module):
     
     def load_model(self, log_dir):
         self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar', map_location=device))
+
+    def load_model_multi(self, log_dir, name=None):
+        if name:
+            filename = log_dir + '/tnet_' + name +'.pth.tar'
+        else:
+            filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_nums) +'.pth.tar'
+        self.T_net.load_state_dict(torch.load(filename, map_location=device))
 
     def load_checkpoint(self, checkpoint_path):
         state_dict = torch.load(checkpoint_path, map_location=device)

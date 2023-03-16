@@ -79,16 +79,17 @@ for attr1 in attr_it:
     print(f"Training attribute {attr1}")
 
     attr2 = next(attr_it)
+    # attr3 = next(attr_it)
     # attr1 = 'Smiling'
     # attr2 = None
 
     # attr1, attr2 = attr2, attr1
     # Using this as a mock for multi attribute loading
-    attrs = [attr1, attr2]
+    attrs = [attr1, attr2] #, attr3]
     
     total_iter = 0
     # attr_num = attr_dict[attr1]
-    attr_num = [attr_dict[attr1], attr_dict[attr2]]
+    attr_num = [attr_dict[attr1], attr_dict[attr2]] #, attr_dict[attr3]]
     print(attrs)
     # attr1 = "TEST"
     # Initialize trainer
@@ -115,10 +116,10 @@ for attr1 in attr_it:
 
             total_iter += 1
 
-            if n_iter == 5000:
+            if n_iter == 10000:
                 break
 
-        trainer.save_model(log_dir)
+        trainer.save_model_multi(log_dir)
         e_time = time.time() - t
         times.append(e_time)
         print(f"Time for epoch {n_epoch}: {e_time}")
