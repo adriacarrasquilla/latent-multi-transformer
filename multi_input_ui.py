@@ -42,18 +42,20 @@ with gr.Blocks() as demo:
     """
     )
 
-    species = gr.Radio(label="Animal Class", choices=["Mammal", "Fish", "Bird"])
-    animal = gr.Dropdown(label="Animal", choices=[])
+    with gr.Row():
+        with gr.Column():
+            species = gr.Radio(label="Animal Class", choices=["Mammal", "Fish", "Bird"])
+            animal = gr.Dropdown(label="Animal", choices=[])
 
-    image_number = gr.Number(value=None, label="Image ID", interactive=True)
-    photo = gr.Image(value=None, label="Image", interactive=False)
-    photo.style(height=512,width=512)
+            image_number = gr.Number(value=None, label="Image ID", interactive=True)
+            photo = gr.Image(value=None, label="Image", interactive=False)
+            photo.style(height=512,width=512)
 
-    with gr.Column(visible=False) as details_col:
-        weight = gr.Slider(0, 20)
-        details = gr.Textbox(label="Extra Details")
-        generate_btn = gr.Button("Generate")
-        output = gr.Textbox(label="Output")
+        with gr.Column(visible=True) as details_col:
+            weight = gr.Slider(0, 20)
+            details = gr.Textbox(label="Extra Details")
+            generate_btn = gr.Button("Generate")
+            output = gr.Textbox(label="Output")
 
     species_map = {
         "Mammal": ["Elephant", "Giraffe", "Hamster"],
