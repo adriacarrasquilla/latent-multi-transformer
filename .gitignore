@@ -4,6 +4,7 @@ logs/
 outputs/
 pixel2style2pixel/
 data/
+flagged/
 
 # Generic python gitignore
 # Byte-compiled / optimized / DLL files
