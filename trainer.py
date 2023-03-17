@@ -286,6 +286,10 @@ class Trainer(nn.Module):
         self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
         self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
 
+    def get_original_image(self, w):
+        x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
+        return clip_img(downscale(x_0, 2))[0]
+
     def log_image(self, logger, w, n_iter):
         with torch.no_grad():
             self.get_image(w)
