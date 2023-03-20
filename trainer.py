@@ -166,6 +166,43 @@ class Trainer(nn.Module):
 
         return self.loss
 
+    def compute_eval_loss(self, w, coeff):
+        self.w_0 = w
+        predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
+        lbl_0 = torch.sigmoid(predict_lbl_0)
+
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
+
+        target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+
+        # Apply latent transformation
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0))
+        self.w_1 = self.w_1.view(w.size())
+        predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
+
+        # Pb loss
+        T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+        F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
+                                    target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.loss_pb.mean()
+
+        # Latent code recon
+        self.loss_recon = self.MSEloss(self.w_1, self.w_0)
+
+        # Reg loss
+        threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
+        mask = torch.tensor(self.get_correlation(self.attr_nums[0], threshold=threshold_val)).type_as(predict_lbl_0)
+        # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
+        self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
+        
+        # Total loss
+        w_recon, w_pb, w_reg = self.config['w']['recon'], self.config['w']['pb'], self.config['w']['reg']
+        self.loss =  w_pb * self.loss_pb + w_recon*self.loss_recon + w_reg * self.loss_reg
+
+        return self.loss
+
     def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w
         predict_lbl_0 = self.Latent_Classifier(self.w_0.view(w.size(0), -1))
@@ -283,6 +320,10 @@ class Trainer(nn.Module):
         w_1 = w_1.view(w.size())
         self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
         self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+
+    def get_classification(self, w):
+        predict_lbl_0 = self.Latent_Classifier(w.view(w.size(0), -1))
+        return torch.sigmoid(predict_lbl_0).detach().cpu().numpy()[0]
 
     def get_original_image(self, w):
         x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)

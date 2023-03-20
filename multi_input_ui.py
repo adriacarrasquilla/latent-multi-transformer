@@ -65,7 +65,7 @@ with gr.Blocks() as demo:
             species = gr.Radio(label="Animal Class", choices=["Mammal", "Fish", "Bird"])
             animal = gr.Dropdown(label="Animal", choices=[])
 
-            image_number = gr.Number(value=None, label="Image ID", interactive=True)
+            image_number = gr.Slider(minimum=0, maximum=len(loader), label="Image ID", interactive=True)
             photo = gr.Image(value=None, label="Image", interactive=False)
             photo.style(height=512,width=512)
 
