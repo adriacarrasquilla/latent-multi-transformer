@@ -23,7 +23,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 Image.MAX_IMAGE_PIXELS = None
-device = torch.device('cuda')
+DEVICE = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='001', help='Path to the config file.')
@@ -68,7 +68,7 @@ def latent_manipulation(opts, latent_dir_path, process_dir_path):
         # Initialize trainer
         trainer = Trainer(config, None, None, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)
-        trainer.to(device)
+        trainer.to(DEVICE)
 
         latent_num = len(glob.glob1(latent_dir_path,'*.npy'))
 
@@ -80,11 +80,11 @@ def latent_manipulation(opts, latent_dir_path, process_dir_path):
 
         for k in range(latent_num):
             w_0 = np.load(latent_dir_path + 'latent_code_%05d.npy'%k)
-            w_0 = torch.tensor(w_0).to(device)
+            w_0 = torch.tensor(w_0).to(DEVICE)
             w_1 = w_0.clone()
             for attr_idx, attr in enumerate(attrs):
                 alpha = torch.tensor(float(alphas[attr_idx]))
-                w_1 = T_nets[attr_idx](w_1.view(w_0.size(0), -1), alpha.unsqueeze(0).to(device))
+                w_1 = T_nets[attr_idx](w_1.view(w_0.size(0), -1), alpha.unsqueeze(0).to(DEVICE))
             w_1 = w_1.view(w_0.size())
             w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
             x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)

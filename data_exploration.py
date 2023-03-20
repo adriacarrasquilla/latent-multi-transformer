@@ -9,18 +9,16 @@ import seaborn as sns
 from datasets import *
 from nets import *
 
-from attr_dict import NUM_TO_ATTR
+from constants import NUM_TO_ATTR, DEVICE
 
 import sys
 import numpy
 numpy.set_printoptions(threshold=sys.maxsize)
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
 LatentClassifier = LCNet([9216, 2048, 512, 40], activ='leakyrelu')
-LatentClassifier.load_state_dict(torch.load('./models/latent_classifier_epoch_20.pth', map_location=device))
+LatentClassifier.load_state_dict(torch.load('./models/latent_classifier_epoch_20.pth', map_location=DEVICE))
 LatentClassifier.eval()
-LatentClassifier.to(device)
+LatentClassifier.to(DEVICE)
 
 dataset_A = LatentDataset('./data/celebahq_dlatents_psp.npy', './data/celebahq_anno.npy', training_set=True)
 loader_A = data.DataLoader(dataset_A, batch_size=1, shuffle=True)
@@ -42,7 +40,7 @@ def classifier_distribution():
         with torch.no_grad():
             for n_iter, list_A in enumerate(loader_A):
                 w_A, lbl_A = list_A
-                w_A, lbl_A = w_A.to(device), lbl_A.to(device)
+                w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
                 predict_lbl_0 = LatentClassifier(w_A.view(w_A.size(0), -1))
                 lbl_0 = torch.sigmoid(predict_lbl_0)
                 attr = NUM_TO_ATTR[torch.argmax(lbl_0, axis=1).item()]

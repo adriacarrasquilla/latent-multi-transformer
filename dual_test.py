@@ -26,7 +26,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 Image.MAX_IMAGE_PIXELS = None
-device = torch.device('cuda')
+DEVICE = torch.device('cuda')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='reduction', help='Path to the config file.')
@@ -82,7 +82,7 @@ with torch.no_grad():
         trainer = Trainer(config, attr_num, attrs, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
         trainer.load_model_multi(log_dir, name="24")
-        trainer.to(device)
+        trainer.to(DEVICE)
         
         testdata_dir = './data/test/'
         img_list = [glob.glob1(testdata_dir, ext) for ext in ['*jpg','*png']]
@@ -92,11 +92,11 @@ with torch.no_grad():
         for idx in range(len(img_list)):
 
             x_0 = img_to_tensor(Image.open(testdata_dir + img_list[idx]))
-            x_0 = x_0.unsqueeze(0).to(device)
+            x_0 = x_0.unsqueeze(0).to(DEVICE)
             img_l = [x_0] # original image
 
             w_0 = np.load(testdata_dir + 'latent_code_%05d.npy'%idx)
-            w_0 = torch.tensor(w_0).to(device)
+            w_0 = torch.tensor(w_0).to(DEVICE)
             predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
             lbl_0 = F.sigmoid(predict_lbl_0)
 
@@ -109,7 +109,7 @@ with torch.no_grad():
                 range_alpha2 = torch.linspace(scale * scales2[0], scale * scales2[1], n_steps)
 
                 for i, (alpha1, alpha2) in enumerate(zip(range_alpha1, range_alpha2)):
-                    coeff = torch.tensor([[alpha1, alpha2]]).to(device)
+                    coeff = torch.tensor([[alpha1, alpha2]]).to(DEVICE)
                     w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff)
                     w_1 = w_1.view(w_0.size())
                     w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)

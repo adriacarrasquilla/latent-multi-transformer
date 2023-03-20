@@ -24,10 +24,10 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-    device = torch.device('cuda')
+    DEVICE = torch.device('cuda')
 else:
     os.environ["TORCH_CUDA_ARCH_LIST"] = "Turing"
-    device = torch.device('cpu')
+    DEVICE = torch.device('cpu')
 
 from datasets import *
 from trainer import *
@@ -67,7 +67,7 @@ batch_size = config['batch_size']
 epochs = config['epochs']
 
 dlatents = np.load(opts.latent_path)
-w = torch.tensor(dlatents).to(device)
+w = torch.tensor(dlatents).to(DEVICE)
 
 dataset_A = LatentDataset(opts.latent_path, opts.label_file, training_set=True)
 loader_A = data.DataLoader(dataset_A, batch_size=batch_size, shuffle=True)
@@ -83,14 +83,14 @@ attr_num = [attr_dict[a] for a in attrs]
 # Initialize trainer
 trainer = Trainer(config, attr_num, attrs, opts.label_file)
 trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
-trainer.to(device)
+trainer.to(DEVICE)
 
 for n_epoch in range(epochs):
     t = time.time()
 
     for n_iter, list_A in enumerate(loader_A):
         w_A, lbl_A = list_A
-        w_A, lbl_A = w_A.to(device), lbl_A.to(device)
+        w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
         trainer.update(w_A, None, n_iter)
 
         if (total_iter+1) % config['log_iter'] == 0:

@@ -1,6 +1,6 @@
 import gradio as gr
 from torch.utils import data
-from attr_dict import ATTR_TO_NUM
+from constants import ATTR_TO_NUM
 from datasets import LatentDataset
 from itertools import islice
 import torch
@@ -9,14 +9,7 @@ import numpy as np
 
 from trainer import Trainer
 
-LABEL_FILE = './data/celebahq_anno.npy'
-LATENT_PATH = './data/celebahq_dlatents_psp.npy'
-
-LABEL_FILE = './data/celebahq_anno.npy'
-DEVICE = torch.device('cuda')
-LOG_DIR = './logs/reduction'
-STYLEGAN = './pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt'
-CLASSIFIER = './models/latent_classifier_epoch_20.pth'
+from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
 
 # Load basic config

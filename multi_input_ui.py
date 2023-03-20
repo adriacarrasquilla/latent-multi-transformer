@@ -1,6 +1,6 @@
 import gradio as gr
 from torch.utils import data
-from attr_dict import ATTR_TO_NUM
+from constants import ATTR_TO_NUM
 from datasets import LatentDataset
 from itertools import islice
 import torch

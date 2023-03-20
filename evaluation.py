@@ -26,7 +26,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 Image.MAX_IMAGE_PIXELS = None
-device = torch.device('cuda')
+DEVICE = torch.device('cuda')
 
 'No_Beard'
 'Eyeglasses'
@@ -75,7 +75,7 @@ with torch.no_grad():
     # Initialize trainer
     trainer = Trainer(config, None, None, opts.label_file)
     trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
-    trainer.to(device)
+    trainer.to(DEVICE)
 
     for attr in list(attr_dict.keys()):
 
@@ -86,7 +86,7 @@ with torch.no_grad():
         for k in range(1000):
 
             w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
-            w_0 = torch.tensor(w_0).to(device)
+            w_0 = torch.tensor(w_0).to(DEVICE)
 
             predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
             lbl_0 = F.sigmoid(predict_lbl_0)
@@ -96,7 +96,7 @@ with torch.no_grad():
             range_alpha = torch.linspace(0, scale*coeff, n_steps)
             for i,alpha in enumerate(range_alpha):
                 
-                w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), alpha.unsqueeze(0).to(device))
+                w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), alpha.unsqueeze(0).to(DEVICE))
                 w_1 = w_1.view(w_0.size())
                 w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
                 x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)

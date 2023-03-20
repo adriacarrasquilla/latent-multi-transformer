@@ -23,9 +23,7 @@ sys.path.append('pixel2style2pixel/')
 from pixel2style2pixel.models.stylegan2.model import Generator
 from pixel2style2pixel.models.psp import get_keys
 
-from attr_dict import NUM_TO_ATTR
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+from constants import NUM_TO_ATTR, DEVICE
 
 
 class Trainer(nn.Module):
@@ -80,7 +78,7 @@ class Trainer(nn.Module):
     def initialize(self, stylegan_model_path, classifier_model_path):
         state_dict = torch.load(stylegan_model_path, map_location='cpu')
         self.StyleGAN.load_state_dict(get_keys(state_dict, 'decoder'), strict=True)
-        self.Latent_Classifier.load_state_dict(torch.load(classifier_model_path, map_location=device))
+        self.Latent_Classifier.load_state_dict(torch.load(classifier_model_path, map_location=DEVICE))
         self.Latent_Classifier.eval()
 
     def L1loss(self, input, target):
@@ -370,17 +368,17 @@ class Trainer(nn.Module):
             torch.save(checkpoint_state, '{:s}/checkpoint'.format(log_dir))
     
     def load_model(self, log_dir):
-        self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar', map_location=device))
+        self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar', map_location=DEVICE))
 
     def load_model_multi(self, log_dir, name=None):
         if name:
             filename = log_dir + '/tnet_' + name +'.pth.tar'
         else:
             filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_nums) +'.pth.tar'
-        self.T_net.load_state_dict(torch.load(filename, map_location=device))
+        self.T_net.load_state_dict(torch.load(filename, map_location=DEVICE))
 
     def load_checkpoint(self, checkpoint_path):
-        state_dict = torch.load(checkpoint_path, map_location=device)
+        state_dict = torch.load(checkpoint_path, map_location=DEVICE)
         self.T_net.load_state_dict(state_dict['T_net_state_dict'])
         self.optimizer.load_state_dict(state_dict['opt_state_dict'])
         self.scheduler.load_state_dict(state_dict['scheduler_state_dict'])

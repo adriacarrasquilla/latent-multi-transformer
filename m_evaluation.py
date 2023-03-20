@@ -26,7 +26,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 Image.MAX_IMAGE_PIXELS = None
-device = torch.device('cuda')
+DEVICE = torch.device('cuda')
 
 'No_Beard'
 'Eyeglasses'
@@ -79,14 +79,14 @@ with torch.no_grad():
     # Initialize trainer
     trainer = Trainer(config, attr_num, attrs, opts.label_file)
     trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
-    trainer.to(device)
+    trainer.to(DEVICE)
 
     trainer.load_model(log_dir)
     
     for k in range(1000):
 
         w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
-        w_0 = torch.tensor(w_0).to(device)
+        w_0 = torch.tensor(w_0).to(DEVICE)
 
         predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
         lbl_0 = torch.sigmoid(predict_lbl_0)
@@ -99,7 +99,7 @@ with torch.no_grad():
         range_alpha = torch.linspace(0, scale*coeff[0].item(), n_steps)
         for i,alpha in enumerate(range_alpha):
 
-            coeff = torch.tensor([[alpha, alpha]]).to(device)
+            coeff = torch.tensor([[alpha, alpha]]).to(DEVICE)
             
             w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff) # , alpha.unsqueeze(0).to(device))
             w_1 = w_1.view(w_0.size())
