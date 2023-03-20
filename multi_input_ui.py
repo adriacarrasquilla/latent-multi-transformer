@@ -34,7 +34,25 @@ dataset = LatentDataset(LATENT_PATH, LABEL_FILE, training_set=True)
 loader = data.DataLoader(dataset, batch_size=1, shuffle=False)
 
 
+
 with gr.Blocks() as demo:
+    sample = gr.State(value=None)
+
+    def update_image(image_number):
+        sample = next(islice(loader, int(image_number), None))[0].to(DEVICE)
+        result = trainer.get_original_image(sample).numpy()
+        result = np.transpose(result, (1, 2, 0))
+        return gr.Image.update(value=result), gr.State(value=sample)
+
+    def transform_image(image_number, sample):
+        # sample = next(islice(loader, int(image_number), None))[0].to(DEVICE)
+        w = trainer.T_net(sample.value.view(sample.value.size(0), -1), torch.tensor([[1.0,1.0]]).to(DEVICE))
+        size = w.size()
+        w = w.view(size)
+        result = trainer.get_original_image(w).numpy()
+        result = np.transpose(result, (1, 2, 0))
+        return gr.Image.update(value=result)
+
     gr.Markdown(
         """
     # Animal Generator
@@ -55,7 +73,8 @@ with gr.Blocks() as demo:
             weight = gr.Slider(0, 20)
             details = gr.Textbox(label="Extra Details")
             generate_btn = gr.Button("Generate")
-            output = gr.Textbox(label="Output")
+            output = gr.Image(value=None, label="Output", interactive=False)
+            output.style(height=512,width=512)
 
     species_map = {
         "Mammal": ["Elephant", "Giraffe", "Hamster"],
@@ -68,14 +87,8 @@ with gr.Blocks() as demo:
             choices=species_map[species], value=species_map[species][1]
         ), gr.update(visible=True)
 
-    def update_image(image_number):
-        sample = next(islice(loader, int(image_number), None))[0].to(DEVICE)
-        result = trainer.get_original_image(sample).numpy()
-        result = np.transpose(result, (1, 2, 0))
-        return gr.Image.update(value=result)
-
     species.change(filter_species, species, [animal, details_col])
-    image_number.change(update_image, image_number, [photo])
+    image_number.change(update_image, image_number, [photo, sample])
 
     def filter_weight(animal):
         if animal in ("Elephant", "Shark", "Giraffe"):
@@ -86,7 +99,7 @@ with gr.Blocks() as demo:
     animal.change(filter_weight, animal, weight)
     weight.change(lambda w: gr.update(lines=int(w / 10) + 1), weight, details)
 
-    generate_btn.click(lambda x: x, details, output)
+    generate_btn.click(transform_image, [image_number, sample], output)
 
 
 if __name__ == "__main__":
