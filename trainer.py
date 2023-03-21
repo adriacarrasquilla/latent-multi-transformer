@@ -306,7 +306,7 @@ class Trainer(nn.Module):
         # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
         # self.attr_num = torch.argmax(lbl_0, axis=1)
         # self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
-        self.local_attr = "Bald"
+        self.local_attr = "multi"
         # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
         attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
 
@@ -332,8 +332,8 @@ class Trainer(nn.Module):
     def log_image(self, logger, w, n_iter):
         with torch.no_grad():
             self.get_image(w)
-        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
-        logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
+        logger.add_image('image_'+self.attrs+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+self.attrs+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
 
     def get_image_verbose(self, w):
         # Original image
@@ -374,10 +374,10 @@ class Trainer(nn.Module):
         logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+'modif'+suffix, clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
         
     def log_loss(self, logger, n_iter):
-        logger.add_scalar('loss_'+self.attr+'/class', self.loss_pb.item(), n_iter + 1)
-        logger.add_scalar('loss_'+self.attr+'/latent_recon', self.loss_recon.item(), n_iter + 1)
-        logger.add_scalar('loss_'+self.attr+'/attr_reg', self.loss_reg.item(), n_iter + 1)
-        logger.add_scalar('loss_'+self.attr+'/total', self.loss.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attrs+'/class', self.loss_pb.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attrs+'/latent_recon', self.loss_recon.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attrs+'/attr_reg', self.loss_reg.item(), n_iter + 1)
+        logger.add_scalar('loss_'+self.attrs+'/total', self.loss.item(), n_iter + 1)
 
     def save_image(self, log_dir, w, n_iter):
         with torch.no_grad():
