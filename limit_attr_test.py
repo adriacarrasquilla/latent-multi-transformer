@@ -106,7 +106,7 @@ for attr in all_attrs:
             if n_iter == 5000:
                 break
 
-        trainer.save_model_multi(log_dir, name="{len(attrs)}_attrs")
+        trainer.save_model_multi(log_dir, name=f"{len(attrs)}_attrs")
         e_time = time.time() - t
         times.append(e_time)
         print(f"Time for epoch {n_epoch}: {e_time}")
