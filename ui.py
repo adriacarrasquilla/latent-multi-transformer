@@ -1,6 +1,4 @@
-from time import time
 import gradio as gr
-from matplotlib import interactive
 from torch.utils import data
 from attr_dict import NUM_TO_ATTR
 from constants import ATTR_TO_NUM
@@ -14,16 +12,17 @@ from trainer import Trainer
 
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
+experiment = "limit"
 
 # Load basic config
-config = yaml.safe_load(open('./configs/' + "reduction" + '.yaml', 'r'))
+config = yaml.safe_load(open('./configs/' + experiment + '.yaml', 'r'))
 attrs = config['attr'].split(',')
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
 # Init trainer
 trainer = Trainer(config, attr_num, attrs, LABEL_FILE)
 trainer.initialize(STYLEGAN, CLASSIFIER)   
-trainer.load_model_multi(LOG_DIR)
+trainer.load_model_multi(LOG_DIR + experiment, "10_attrs")
 trainer.to(DEVICE)
 
 # Load data
@@ -115,6 +114,19 @@ def update_dataframe(headers, org, pred):
     pred = ["Transformed"] + [f"{pred[i]:.3f}" for i in idx]
     return gr.DataFrame.update([[" "] + headers, org, pred], visible=True), gr.Column.update(visible=True)
 
+def merge_sliders(s1, s2):
+    sliders = []
+    for x, y in zip(s1, s2):
+        sliders.append(x)
+        sliders.append(y)
+
+    if len(s1) > len(s2):
+        sliders += s1[len(s2):]
+    elif len(s2) > len(s1):
+        sliders += s2[len(s1):]
+
+    return sliders
+
 
 with gr.Blocks() as demo:
     gr.Markdown(
@@ -131,8 +143,8 @@ with gr.Blocks() as demo:
     losses = gr.State()
     loader = gr.State(value=main_loader)
 
-    with gr.Row():
-        with gr.Column():
+    with gr.Column():
+        with gr.Row():
             # image_number = gr.Number(value=None, label="Image ID", interactive=True)
             image_number = gr.Slider(minimum=0, maximum=len(loader.value)-1, value=0, step=1, label="Image ID", interactive=True)
             filters = gr.Dropdown(
@@ -142,8 +154,13 @@ with gr.Blocks() as demo:
                 label="Filter out attributes in samples",
             )
 
-        with gr.Column():
-            sliders = [gr.Slider(-3, 3, 0, label=attr) for attr in attrs]
+        with gr.Row():
+            with gr.Column():
+                sliders_even = [gr.Slider(-3, 3, 0, label=attr) for attr in attrs[0::2]]
+            with gr.Column():
+                sliders_odd = [gr.Slider(-3, 3, 0, label=attr) for attr in attrs[1::2]]
+
+        sliders = merge_sliders(sliders_even, sliders_odd)
 
     with gr.Row():
         photo = gr.Image(value=None, label="Image", interactive=False)
@@ -163,7 +180,7 @@ with gr.Blocks() as demo:
 
         attributes = gr.Dropdown(
             [attribute for attribute in ATTR_TO_NUM],
-            value=["No_Beard", "Chubby"],
+            value=attrs,
             interactive=True,
             multiselect=True,
             label="Filter out attributes to check their classification",

@@ -27,7 +27,7 @@ ATTR_TO_NUM = {
 # Paths
 LATENT_PATH = './data/celebahq_dlatents_psp.npy'
 LABEL_FILE = './data/celebahq_anno.npy'
-LOG_DIR = './logs/reduction'
+LOG_DIR = './logs/'
 STYLEGAN = './pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt'
 CLASSIFIER = './models/latent_classifier_epoch_20.pth'
 
