@@ -12,17 +12,19 @@ from trainer import Trainer
 
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
+# experiment = "limit_scaled"
 experiment = "limit"
+n_attrs = 5
 
 # Load basic config
 config = yaml.safe_load(open('./configs/' + experiment + '.yaml', 'r'))
-attrs = config['attr'].split(',')
+attrs = config['attr'].split(',')[:n_attrs]
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
 # Init trainer
 trainer = Trainer(config, attr_num, attrs, LABEL_FILE)
-trainer.initialize(STYLEGAN, CLASSIFIER)   
-trainer.load_model_multi(LOG_DIR + experiment, "10_attrs")
+trainer.initialize(STYLEGAN, CLASSIFIER)
+trainer.load_model_multi(LOG_DIR + experiment, f"{n_attrs}_attrs")
 trainer.to(DEVICE)
 
 # Load data
@@ -71,12 +73,14 @@ def filter_dataloader(filters):
 
     return gr.Slider.update(maximum=len(loader)-1), loader
 
+
 def update_image(image_number, loader):
     sample = next(islice(loader, int(image_number), None))[0].to(DEVICE)
     classification = trainer.get_classification(sample)
     result = trainer.get_original_image(sample).numpy()
     result = np.transpose(result, (1, 2, 0))
     return gr.Image.update(value=result), gr.State(value=sample), classification
+
 
 def transform_image(sample, *sliders):
     org_size = sample.value.size()
@@ -88,16 +92,12 @@ def transform_image(sample, *sliders):
     loss_recon = trainer.loss_recon.item()
     loss_reg = trainer.loss_reg.item()
 
-    # w = trainer.T_net(sample, torch.tensor(coeffs).to(DEVICE))
     w = trainer.w_1
     classification = trainer.get_classification(w)
     w = w.view(org_size)
 
     result = trainer.get_original_image(w).numpy()
     result = np.transpose(result, (1, 2, 0))
-
-    # print(total_loss, loss_pb, loss_reg, loss_recon)
-    # print(classification)
 
     return (
         gr.Image.update(value=result),
@@ -114,6 +114,7 @@ def update_dataframe(headers, org, pred):
     pred = ["Transformed"] + [f"{pred[i]:.3f}" for i in idx]
     return gr.DataFrame.update([[" "] + headers, org, pred], visible=True), gr.Column.update(visible=True)
 
+
 def merge_sliders(s1, s2):
     sliders = []
     for x, y in zip(s1, s2):
@@ -126,6 +127,9 @@ def merge_sliders(s1, s2):
         sliders += s2[len(s1):]
 
     return sliders
+
+def reset_sliders(*sliders):
+    return [gr.Slider.update(value=0) for _ in range(len(sliders))]
 
 
 with gr.Blocks() as demo:
@@ -143,9 +147,10 @@ with gr.Blocks() as demo:
     losses = gr.State()
     loader = gr.State(value=main_loader)
 
+    # Layout
     with gr.Column():
         with gr.Row():
-            # image_number = gr.Number(value=None, label="Image ID", interactive=True)
+            # Image Selector and attribute filter
             image_number = gr.Slider(minimum=0, maximum=len(loader.value)-1, value=0, step=1, label="Image ID", interactive=True)
             filters = gr.Dropdown(
                 TOTAL_ATTRS,
@@ -154,6 +159,7 @@ with gr.Blocks() as demo:
                 label="Filter out attributes in samples",
             )
 
+        # Attribute sliders
         with gr.Row():
             with gr.Column():
                 sliders_even = [gr.Slider(-3, 3, 0, label=attr) for attr in attrs[0::2]]
@@ -162,16 +168,20 @@ with gr.Blocks() as demo:
 
         sliders = merge_sliders(sliders_even, sliders_odd)
 
+        reset_btn = gr.Button("Reset Sliders")
+
     with gr.Row():
         photo = gr.Image(value=None, label="Image", interactive=False)
         photo.style(height=512,width=512)
         out_image = gr.Image(value=None, label="Output", interactive=False)
         out_image.style(height=512,width=512)
 
-    generate_btn = gr.Button("Generate")
+    generate_btn = gr.Button("Generate", variant="primary")
 
+    # Result column
     with gr.Column(visible=False) as result_col:
 
+        # Show each loss value for the current transformation
         with gr.Row():
             total_loss = gr.Number(value=0, precision=3, label="total_loss")
             loss_pb = gr.Number(value=0, precision=3, label="loss_pb")
@@ -186,6 +196,7 @@ with gr.Blocks() as demo:
             label="Filter out attributes to check their classification",
         )
 
+        # Classification value for each of the selected attributes
         attribute_df = gr.DataFrame([[" "] + [attribute for attribute in attributes.value],
                                      ["Original"] + [0.0000 for _ in attributes.value],
                                      ["Transformed"] + [0.0000 for _ in attributes.value]], visible=False)
@@ -194,6 +205,8 @@ with gr.Blocks() as demo:
     image_number.change(update_image, [image_number, loader], [photo, sample, class_org])
     attributes.change(update_dataframe, [attributes, class_org, class_pred], [attribute_df, result_col])
     filters.change(filter_dataloader, filters, [image_number, loader])
+
+    reset_btn.click(reset_sliders, sliders, sliders)
 
     generate_btn.click(
         transform_image,
