@@ -201,6 +201,7 @@ class F_mapping_multi2(nn.Module):
         self.mapping_layers = mapping_layers
         self.act = mapping_nonlinearity
         self.dtype = dtype
+        self.n_attributes = n_attributes
 
         # Mapping layers.
         self.dense = nn.ModuleList()
@@ -228,7 +229,7 @@ class F_mapping_multi2(nn.Module):
         x = apply_bias_act(self.fc0(x))
 
         coeffs = coeffs.transpose(0,1)
-        x = x * coeffs
+        x = x * coeffs * (1 + self.n_attributes)/2 # TODO: remove this if it does not work
         x = x.reshape(1, -1)
         # x = torch.cat((x, coeffs), dim=1)
 

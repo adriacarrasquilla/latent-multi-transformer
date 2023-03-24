@@ -34,7 +34,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='limit', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='limit_scaled', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -76,8 +76,9 @@ print('Start training!')
 times = []
 
 
-attrs = []
-for attr in all_attrs:
+attrs = all_attrs[:15]
+for attr in all_attrs[15:]:
+    print(f"Adding {attr}")
 
     total_iter = 0
 

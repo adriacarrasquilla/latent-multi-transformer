@@ -34,7 +34,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='scaling', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='comparison', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -74,7 +74,8 @@ loader_A = data.DataLoader(dataset_A, batch_size=batch_size, shuffle=True)
 
 print('Start training!')
 times = []
-print(f"Training all attributes")
+
+print(f"Training model for: {','.join(attrs)}")
 
 total_iter = 0
 # attr_num = attr_dict[attr1]
@@ -97,16 +98,13 @@ for n_epoch in range(epochs):
             trainer.log_loss(logger, total_iter)
         if (total_iter+1) % config['image_log_iter'] == 0:
             trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-            # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-            # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-            # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
 
         total_iter += 1
 
         if n_iter == 5000:
             break
 
-    trainer.save_model_multi(log_dir, name="ALL")
+    trainer.save_model_multi(log_dir, name="comp2")
     e_time = time.time() - t
     times.append(e_time)
     print(f"Time for epoch {n_epoch}: {e_time}")
