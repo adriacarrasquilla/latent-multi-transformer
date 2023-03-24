@@ -14,17 +14,19 @@ from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYL
 
 # experiment = "limit_scaled"
 experiment = "limit"
-n_attrs = 5
+n_attrs = 20
 
 # Load basic config
 config = yaml.safe_load(open('./configs/' + experiment + '.yaml', 'r'))
 attrs = config['attr'].split(',')[:n_attrs]
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
+model = "comp2"
+model = f"{n_attrs}_attrs"
 
 # Init trainer
 trainer = Trainer(config, attr_num, attrs, LABEL_FILE)
 trainer.initialize(STYLEGAN, CLASSIFIER)
-trainer.load_model_multi(LOG_DIR + experiment, f"{n_attrs}_attrs")
+trainer.load_model_multi(LOG_DIR + experiment, model)
 trainer.to(DEVICE)
 
 # Load data
@@ -81,6 +83,21 @@ def update_image(image_number, loader):
     result = np.transpose(result, (1, 2, 0))
     return gr.Image.update(value=result), gr.State(value=sample), classification
 
+def update_custom_image(file_path):
+    if ".npy" in file_path.name:
+        sample = np.load(file_path.name)
+        sample = torch.tensor(sample).to(DEVICE)
+    else:
+        # asuming the format will be jpg
+        # TODO: implement automatic conversion
+        # sample = img_to_encoding(file_path)
+
+    classification = trainer.get_classification(sample)
+    result = trainer.get_original_image(sample).numpy()
+    result = np.transpose(result, (1, 2, 0))
+
+    return gr.Image.update(value=result), gr.State(value=sample), classification
+
 
 def transform_image(sample, *sliders):
     org_size = sample.value.size()
@@ -131,8 +148,9 @@ def merge_sliders(s1, s2):
 def reset_sliders(*sliders):
     return [gr.Slider.update(value=0) for _ in range(len(sliders))]
 
+custom_css = "#input_image { height: 50px;} .wrap.svelte-wm1r53 {font-size: 0px}"
 
-with gr.Blocks() as demo:
+with gr.Blocks(css=custom_css) as demo:
     gr.Markdown(
         """
     # Face editing
@@ -168,7 +186,9 @@ with gr.Blocks() as demo:
 
         sliders = merge_sliders(sliders_even, sliders_odd)
 
-        reset_btn = gr.Button("Reset Sliders")
+        with gr.Row():
+            reset_btn = gr.Button("Reset Sliders")
+            upload_image = gr.File(elem_id="input_image", label="Custom Image")
 
     with gr.Row():
         photo = gr.Image(value=None, label="Image", interactive=False)
@@ -205,6 +225,7 @@ with gr.Blocks() as demo:
     image_number.change(update_image, [image_number, loader], [photo, sample, class_org])
     attributes.change(update_dataframe, [attributes, class_org, class_pred], [attribute_df, result_col])
     filters.change(filter_dataloader, filters, [image_number, loader])
+    upload_image.change(update_custom_image, upload_image, [photo, sample, class_org])
 
     reset_btn.click(reset_sliders, sliders, sliders)
 
