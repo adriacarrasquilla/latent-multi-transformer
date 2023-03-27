@@ -88,6 +88,7 @@ def update_custom_image(file_path):
         sample = np.load(file_path.name)
         sample = torch.tensor(sample).to(DEVICE)
     else:
+        pass
         # asuming the format will be jpg
         # TODO: implement automatic conversion
         # sample = img_to_encoding(file_path)

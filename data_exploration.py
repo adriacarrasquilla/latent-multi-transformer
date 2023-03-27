@@ -3,8 +3,9 @@ import torch.utils.data as data
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import Normalize, LinearSegmentedColormap
 import seaborn as sns
+from attr_dict import ATTR_TO_NUM
 
 from datasets import *
 from nets import *
@@ -125,7 +126,7 @@ def data_distribution():
 
 
 def plot_correlation():
-    corr_ma = np.load("corr.npy")
+    corr_ma = np.load("out_images/corr.npy")
     labels = [NUM_TO_ATTR[l] for l in range(len(NUM_TO_ATTR))]
     fig, ax = plt.subplots(figsize=(20,20))
     im = ax.imshow(corr_ma, cmap=my_gradient)
@@ -145,5 +146,32 @@ def plot_correlation():
     fig.tight_layout()
     plt.savefig("out_images/correlation.png", bbox_inches="tight")
 
+def plot_correlation_subset(labels, title="sub_corr"):
+    corr_ma = np.load("out_images/corr.npy")
+    labels_idx = [ATTR_TO_NUM[l] for l in labels]
+    corr_ma  = corr_ma[np.ix_(labels_idx, labels_idx)]
+    norm = Normalize(vmin=-1, vmax=1)
+
+    fig, ax = plt.subplots(figsize=(10,10))
+    im = ax.imshow(corr_ma, cmap=my_gradient, norm=norm)
+    ax.set_xticks(np.arange(len(labels)), labels=labels, fontsize=14)
+    ax.set_yticks(np.arange(len(labels)), labels=labels, fontsize=14)
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            if corr_ma[i,j] <= -0.3:
+                color = "w"
+            elif 0.3 > corr_ma[i,j] > -0.3:
+                color = "#888888"
+            else:
+                color = "#282828"
+            text = ax.text(j, i, f"{corr_ma[i, j]:.1f}", ha="center", va="center", color=color, fontsize=12)
+
+    fig.tight_layout()
+    plt.savefig(f"out_images/{title}.png", bbox_inches="tight")
+
 if __name__ == "__main__":
-    plot_correlation()
+    labels = ["Young", "Smiling", "No_Beard", "Eyeglasses"]
+    plot_correlation_subset(labels, "sub1")
+    labels = ["Young", "Gray_Hair", "No_Beard", "Male"]
+    plot_correlation_subset(labels, "sub2")

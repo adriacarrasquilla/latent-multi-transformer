@@ -114,6 +114,7 @@ class Trainer(nn.Module):
             lbls = np.load(self.label_file)
             self.corr_ma = np.corrcoef(lbls.transpose())
             self.corr_ma[np.isnan(self.corr_ma)] = 0
+            # np.save("corr.npy", self.corr_ma)
         # corr_vec = np.abs(self.corr_ma[attr_num:attr_num+1]) # Original, below is the experimental one
         # Enable this again for exp
         # attr_num = attr_num.cpu()
