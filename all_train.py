@@ -34,7 +34,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='comparison', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='eval', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -101,10 +101,10 @@ for n_epoch in range(epochs):
 
         total_iter += 1
 
-        if n_iter == 5000:
-            break
+        # if n_iter == 10000:
+        #     break
 
-    trainer.save_model_multi(log_dir, name="comp2")
+    trainer.save_model_multi(log_dir, name="20_attrs")
     e_time = time.time() - t
     times.append(e_time)
     print(f"Time for epoch {n_epoch}: {e_time}")

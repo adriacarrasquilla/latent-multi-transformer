@@ -13,7 +13,7 @@ from trainer import Trainer
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
 # experiment = "limit_scaled"
-experiment = "limit"
+experiment = "eval"
 n_attrs = 20
 
 # Load basic config
@@ -24,7 +24,7 @@ model = "comp2"
 model = f"{n_attrs}_attrs"
 
 # Init trainer
-trainer = Trainer(config, attr_num, attrs, LABEL_FILE)
+trainer = Trainer(config, attr_num, attrs, LABEL_FILE, training=False)
 trainer.initialize(STYLEGAN, CLASSIFIER)
 trainer.load_model_multi(LOG_DIR + experiment, model)
 trainer.to(DEVICE)
@@ -88,8 +88,8 @@ def update_custom_image(file_path):
         sample = np.load(file_path.name)
         sample = torch.tensor(sample).to(DEVICE)
     else:
-        pass
-        # asuming the format will be jpg
+        raise NotImplemented()
+        # asuming the format will be jpg or png
         # TODO: implement automatic conversion
         # sample = img_to_encoding(file_path)
 
