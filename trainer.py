@@ -125,6 +125,18 @@ class Trainer(nn.Module):
         corr_vec[corr_vec>=threshold] = 1
         return 1 - corr_vec
 
+    def get_correlation_multi(self, attr_nums, threshold=1):
+        if self.corr_ma is None:
+            lbls = np.load(self.label_file)
+            self.corr_ma = np.corrcoef(lbls.transpose())
+            self.corr_ma[np.isnan(self.corr_ma)] = 0
+
+        corr_vec = np.abs(self.corr_ma[attr_nums, :])
+        corr_vec[corr_vec>=threshold] = 1
+        corr_vec = np.max(corr_vec, axis=0)
+
+        return 1 - corr_vec
+
     def get_coeff(self, x):
         sign_0 = F.relu(x-0.5).sign()
         sign_1 = F.relu(0.5-x).sign()
@@ -205,7 +217,7 @@ class Trainer(nn.Module):
         w_recon, w_pb, w_reg = self.config['w']['recon'], self.config['w']['pb'], self.config['w']['reg']
         self.loss =  w_pb * self.loss_pb + w_recon*self.loss_recon + w_reg * self.loss_reg
 
-        return self.loss
+        return self.loss.item(), self.loss_pb.item(), self.loss_recon.item(), self.loss_reg.item()
 
     def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w
@@ -249,7 +261,7 @@ class Trainer(nn.Module):
 
         # Reg loss
         threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
-        mask = torch.tensor(self.get_correlation(self.attr_nums[0], threshold=threshold_val)).type_as(predict_lbl_0)
+        mask = torch.tensor(self.get_correlation_multi(self.attr_nums, threshold=threshold_val)).type_as(predict_lbl_0)
         # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
         self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
         
