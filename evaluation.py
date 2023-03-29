@@ -2,14 +2,16 @@
 #
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
-
+import matplotlib.pyplot as plt
 import argparse
 import os
 import numpy as np
 import torch
 import yaml
 from rich.progress import track
+
 import random
+
 random.seed(1)
 
 from PIL import Image
@@ -61,9 +63,6 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
 
     target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
 
-    # Apply latent transformation
-    # w_1 = trainer.T_net(w_0.view(w.size(0), -1), coeff.unsqueeze(0))
-    # w_1 = w_1.view(w.size())
     predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w.size(0), -1))
 
     # Pb loss
@@ -116,7 +115,7 @@ model = f"{n_attrs}_attrs"
 n_samples = 1000
 
 
-def eval_multi():
+def eval_multi(save_img=True):
     with torch.no_grad():
         
         # Initialize trainer
@@ -143,14 +142,12 @@ def eval_multi():
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
 
-            if k % 100 == 0:
+            if k % 100 == 0 and save_img:
                 w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
                 x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
                 utils.save_image(clip_img(x_1), save_dir + "multi_" + str(k) + '.jpg')
 
-        del trainer
-        torch.cuda.empty_cache()
-        print(losses.mean(dim=0))
+        return losses.mean(dim=0).detach().cpu().numpy()
 
 
 def eval_multi_n(n=1):
@@ -190,7 +187,7 @@ def eval_multi_n(n=1):
 
         return losses.mean(dim=0).detach().cpu().numpy()
 
-def eval_single():
+def eval_single(save_img=True):
     with torch.no_grad():
         
         log_dir_single = os.path.join(opts.log_path, "001") + '/'
@@ -231,12 +228,12 @@ def eval_single():
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
 
-            if k % 100 == 0:
+            if k % 100 == 0 and save_img:
                 w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
                 x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
                 utils.save_image(clip_img(x_1), save_dir + "single_" + str(k) + '.jpg')
 
-        print(losses.mean(dim=0))
+        return losses.mean(dim=0).detach().cpu().numpy()
 
 def eval_single_n(n=1):
     with torch.no_grad():
@@ -289,22 +286,80 @@ def eval_single_n(n=1):
 
         return losses.mean(dim=0).detach().cpu().numpy()
 
+
+def all_n_experiment(multi=True, single=True):
+    if multi:
+        losses_m = np.zeros((len(attrs), 4))
+        for i in range(1,21):
+            losses_m[i-1] = eval_multi_n(i)
+        np.save("outputs/evaluation/n_multi.npy",losses_m)
+
+    if single:
+        losses_s = np.zeros((len(attrs), 4))
+        for i in range(1,21):
+            losses_s[i-1] = eval_single_n(i)
+        np.save("outputs/evaluation/n_single.npy",losses_s)
+
+
+def plot_n_comparison():
+    multi = np.load("outputs/evaluation/n_multi.npy").T
+    single = np.load("outputs/evaluation/n_single.npy").T
+
+    loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
+
+    for i, title in enumerate(loss_titles):
+        plt.figure(figsize=(12,8))
+        plt.plot(range(1,len(multi[i])+1), multi[i], label="MultiAttr")
+        plt.plot(range(1,len(single[i])+1), single[i], label="SingleAttr")
+        plt.title(title, fontsize=16)
+        plt.xticks(range(1,len(single[i])+1))
+        plt.legend(fontsize=12)
+        plt.xlabel("Number of attributes", fontsize=12)
+        plt.ylabel("Loss", fontsize=12)
+        plt.savefig(f"out_images/n_eval_{title}.png", bbox_inches="tight")
+        plt.clf()
+
+def plot_overall():
+    multi = eval_multi(save_img=False)
+    single = eval_single(save_img=False)
+
+    fig, ax = plt.subplots(figsize=(10,8))
+    bar_width = 0.35
+    opacity = 0.8
+    loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
+
+    x = np.arange(4)
+
+    rects1 = ax.bar(x - bar_width/2, multi, bar_width,
+                alpha=opacity,
+                color='#FF5733',
+                label='Multi Attribute')
+    rects2 = ax.bar(x + bar_width/2, single, bar_width,
+                    alpha=opacity,
+                    color='#581845',
+                    label='Single Attribute')
+
+    ax.set_xlabel('Loss type', fontsize=12)
+    ax.set_ylabel('Loss value', fontsize=12)
+    ax.set_title('Loss comparison Multi vs Single', fontsize=14)
+    ax.set_xticks(x)
+    ax.set_xticklabels(loss_titles)
+    ax.set_yscale('log')
+    ax.legend()
+
+    plt.savefig(f"out_images/eval_overall.png", bbox_inches="tight")
+    # plt.show()
+
+
 if __name__ == "__main__":
-    losses_m = np.zeros((len(attrs), 4))
-    losses_s = np.zeros((len(attrs), 4))
-    for i in range(1,21):
-        losses_m[i-1] = eval_multi_n(i)
+    # plot_n_comparison()
+    plot_overall()
 
-    for row in losses_m:
-        print(row)
 
-    print()
-    for i in range(1,21):
-        losses_s[i-1] = eval_single_n(i)
-
-    print("Single")
-    for row in losses_s:
-        print(row)
-    print("Multi")
-    for row in losses_m:
-        print(row)
+"""
+#FFC300
+#FF5733
+#C70039
+#900C3F
+#581845
+"""
