@@ -16,6 +16,7 @@ from datasets import *
 from original_trainer import Trainer as SingleTrainer
 from trainer import Trainer as MultiTrainer
 from utils.functions import *
+from torchvision import utils
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.deterministic = True
@@ -139,6 +140,11 @@ def eval_multi():
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
 
+            if k % 100 == 0:
+                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                utils.save_image(clip_img(x_1), save_dir + "multi_" + str(k) + '.jpg')
+
         del trainer
         torch.cuda.empty_cache()
         print(losses.mean(dim=0))
@@ -184,6 +190,11 @@ def eval_single():
             loss, loss_pb, loss_reg, loss_recon = compute_sequential_loss(w_0, w_1, attr_num, coeff, trainer)
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
+
+            if k % 100 == 0:
+                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                utils.save_image(clip_img(x_1), save_dir + "single_" + str(k) + '.jpg')
 
         print(losses.mean(dim=0))
 
