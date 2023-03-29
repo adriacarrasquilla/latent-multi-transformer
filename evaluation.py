@@ -9,6 +9,8 @@ import numpy as np
 import torch
 import yaml
 from rich.progress import track
+import random
+random.seed(1)
 
 from PIL import Image
 
@@ -113,6 +115,7 @@ model = f"{n_attrs}_attrs"
 
 n_samples = 1000
 
+
 def eval_multi():
     with torch.no_grad():
         
@@ -149,6 +152,43 @@ def eval_multi():
         torch.cuda.empty_cache()
         print(losses.mean(dim=0))
 
+
+def eval_multi_n(n=1):
+    with torch.no_grad():
+        
+        # Initialize trainer
+        trainer = MultiTrainer(config, attr_num, attrs, opts.label_file)
+        trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
+        trainer.load_model_multi(log_dir, model)
+        trainer.to(DEVICE)
+
+        coeffs = np.load(testdata_dir + "labels/all.npy")
+
+        losses = torch.zeros((n_samples, 4)).to(DEVICE)
+
+        for k in track(range(n_samples), f"Evaluating Multi model for {n} attributes..."):
+            local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
+
+            w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
+            w_0 = torch.tensor(w_0).to(DEVICE)
+
+            coeff = np.zeros_like(coeffs[k])
+            coeff[local_attrs] = coeffs[k][local_attrs]
+            coeff = torch.tensor(coeff).to(DEVICE)
+
+            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff.unsqueeze(0), training=False)
+            w_1 = w_1.view(w_0.size())
+
+            loss, loss_pb, loss_reg, loss_recon = compute_sequential_loss(w_0, w_1, attr_num, coeff, trainer)
+
+            losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
+
+            if k == 500:
+                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                utils.save_image(clip_img(x_1), save_dir + f"multi_{n}_attrs_" + str(k) + '.jpg')
+
+        return losses.mean(dim=0).detach().cpu().numpy()
 
 def eval_single():
     with torch.no_grad():
@@ -198,6 +238,73 @@ def eval_single():
 
         print(losses.mean(dim=0))
 
+def eval_single_n(n=1):
+    with torch.no_grad():
+        
+        log_dir_single = os.path.join(opts.log_path, "001") + '/'
+        # Initialize trainer
+        trainer = SingleTrainer(config, None, None, opts.label_file)
+        trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
+        trainer.to(DEVICE)
+
+
+        coeffs = np.load(testdata_dir + "labels/overall.npy")
+
+        losses = torch.zeros((n_samples, 4)).to(DEVICE)
+
+        for k in track(range(n_samples), f"Evaluating Single for {n} attributes..."):
+            local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
+
+            coeff = np.zeros_like(coeffs[k])
+            coeff[local_attrs] = coeffs[k][local_attrs]
+
+            w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
+            w_0 = torch.tensor(w_0).to(DEVICE)
+            w_1 = w_0
+            w_prev = w_0
+
+            for i, c in enumerate(coeff):
+                if c == 0:
+                    # skip attributes without coefficient
+                    continue
+                trainer.attr_num = attr_dict[attrs[i]]
+                trainer.load_model(log_dir_single)
+                trainer.to(DEVICE)
+                c = torch.tensor(c).to(DEVICE)
+
+                w_1 = trainer.T_net(w_prev.view(w_0.size(0), -1), c.unsqueeze(0))
+                w_1 = w_1.view(w_0.size())
+                w_prev = w_1
+
+            coeff = torch.tensor(coeff).to(DEVICE)
+
+            loss, loss_pb, loss_reg, loss_recon = compute_sequential_loss(w_0, w_1, attr_num, coeff, trainer)
+
+            losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
+
+            if k == 500:
+                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                utils.save_image(clip_img(x_1), save_dir + f"single_{n}_attrs_" + str(k) + '.jpg')
+
+        return losses.mean(dim=0).detach().cpu().numpy()
+
 if __name__ == "__main__":
-    eval_multi()
-    eval_single()
+    losses_m = np.zeros((len(attrs), 4))
+    losses_s = np.zeros((len(attrs), 4))
+    for i in range(1,21):
+        losses_m[i-1] = eval_multi_n(i)
+
+    for row in losses_m:
+        print(row)
+
+    print()
+    for i in range(1,21):
+        losses_s[i-1] = eval_single_n(i)
+
+    print("Single")
+    for row in losses_s:
+        print(row)
+    print("Multi")
+    for row in losses_m:
+        print(row)
