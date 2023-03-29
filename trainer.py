@@ -217,7 +217,7 @@ class Trainer(nn.Module):
         w_recon, w_pb, w_reg = self.config['w']['recon'], self.config['w']['pb'], self.config['w']['reg']
         self.loss =  w_pb * self.loss_pb + w_recon*self.loss_recon + w_reg * self.loss_reg
 
-        return self.loss.item(), self.loss_pb.item(), self.loss_recon.item(), self.loss_reg.item()
+        return self.loss.item(), w_pb*self.loss_pb.item(), w_recon*self.loss_recon.item(), w_reg*self.loss_reg.item()
 
     def compute_loss_multi(self, w, mask_input, n_iter):
         self.w_0 = w

@@ -105,10 +105,7 @@ def transform_image(sample, *sliders):
     sample = sample.value.view(sample.value.size(0), -1)
     coeffs = [coeff for coeff in sliders]
     
-    total_loss = trainer.compute_eval_loss(sample, torch.tensor(coeffs).to(DEVICE)).item()
-    loss_pb = trainer.loss_pb.item()
-    loss_recon = trainer.loss_recon.item()
-    loss_reg = trainer.loss_reg.item()
+    total_loss, loss_pb, loss_recon, loss_reg = trainer.compute_eval_loss(sample, torch.tensor(coeffs).to(DEVICE))
 
     w = trainer.w_1
     classification = trainer.get_classification(w)
