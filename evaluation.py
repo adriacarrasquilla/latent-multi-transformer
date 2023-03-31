@@ -323,7 +323,11 @@ def plot_overall():
     multi = eval_multi(save_img=False)
     single = eval_single(save_img=False)
 
-    fig, ax = plt.subplots(figsize=(10,8))
+    # Mock values
+    # multi = [1,2,3,4]
+    # single = [1,2,3,4]
+
+    fig, ax = plt.subplots(figsize=(10,6))
     bar_width = 0.35
     opacity = 0.8
     loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
