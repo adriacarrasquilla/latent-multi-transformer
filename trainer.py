@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as data
+import random
+random.seed(1)
 
 from PIL import Image
 from torch.autograd import grad
@@ -146,8 +148,20 @@ class Trainer(nn.Module):
         sign_1 = F.relu(0.5-x).sign()
 
         coeffs = sign_0*(-x) + sign_1*(1-x)
-        attrs_idx = torch.randint(0, coeffs.shape[0], (1,), device=DEVICE)
-        coeffs[torch.arange(coeffs.shape[0], device=DEVICE) != attrs_idx] = 0
+        scenario = random.randint(0,2)
+
+        if scenario == 0:
+            attrs_idx = torch.randint(0, coeffs.shape[0], (1,), device=DEVICE)
+            coeffs[torch.arange(coeffs.shape[0], device=DEVICE) != attrs_idx] = 0
+        elif scenario == 1:
+            n = random.randint(2, coeffs.shape[0] - 1)
+            attrs_idx = random.sample(range(coeffs.shape[0] -1), n)
+            coeffs[torch.tensor(attrs_idx)] = coeffs[torch.tensor(attrs_idx)]  # set the chosen elements to their original values
+            coeffs[torch.tensor(list(set(range(coeffs.shape[0])) - set(attrs_idx)))] = 0
+        else:
+            # Do nothing, use all the attributes
+            pass
+
         return coeffs
 
     def compute_loss(self, w, mask_input, n_iter):
