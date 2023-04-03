@@ -121,15 +121,19 @@ class Trainer(nn.Module):
         # corr_vec = np.abs(self.corr_ma[attr_num:attr_num+1]) # Original, below is the experimental one
         # Enable this again for exp
         # attr_num = attr_num.cpu()
+
         corr_vec = np.abs(self.corr_ma[attr_num, :])
         corr_vec[corr_vec>=threshold] = 1
         return 1 - corr_vec
 
-    def get_correlation_multi(self, attr_nums, threshold=1):
+    def get_correlation_multi(self, attr_nums, threshold=1, coeffs=None):
         if self.corr_ma is None:
             lbls = np.load(self.label_file)
             self.corr_ma = np.corrcoef(lbls.transpose())
             self.corr_ma[np.isnan(self.corr_ma)] = 0
+
+        if coeffs is not None:
+            attr_nums = [a[0].item() for a in coeffs.nonzero()]
 
         corr_vec = np.abs(self.corr_ma[attr_nums, :])
         corr_vec[corr_vec>=threshold] = 1
@@ -140,7 +144,11 @@ class Trainer(nn.Module):
     def get_coeff(self, x):
         sign_0 = F.relu(x-0.5).sign()
         sign_1 = F.relu(0.5-x).sign()
-        return sign_0*(-x) + sign_1*(1-x)
+
+        coeffs = sign_0*(-x) + sign_1*(1-x)
+        attrs_idx = torch.randint(0, coeffs.shape[0], (1,), device=DEVICE)
+        coeffs[torch.arange(coeffs.shape[0], device=DEVICE) != attrs_idx] = 0
+        return coeffs
 
     def compute_loss(self, w, mask_input, n_iter):
         self.w_0 = w
@@ -228,8 +236,10 @@ class Trainer(nn.Module):
 
         # Get scaling factor
         coeff = self.get_coeff(attr_pb_0)
-        # coeff = torch.tensor([-1,-1]).to(device)
+        coeff_idx = coeff.nonzero(as_tuple=True)[0].tolist()
+
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+        target_pb = target_pb[coeff_idx]
 
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
@@ -252,8 +262,9 @@ class Trainer(nn.Module):
         T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
         F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
         mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
-        self.loss_pb = self.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums],
-                                    target_pb, reduction='none')*mask_pb
+
+        pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums]
+        self.loss_pb = self.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')*mask_pb
         self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon
@@ -261,7 +272,7 @@ class Trainer(nn.Module):
 
         # Reg loss
         threshold_val = 1 if 'corr_threshold' not in self.config else self.config['corr_threshold']
-        mask = torch.tensor(self.get_correlation_multi(self.attr_nums, threshold=threshold_val)).type_as(predict_lbl_0)
+        mask = torch.tensor(self.get_correlation_multi(self.attr_nums, threshold=threshold_val, coeffs=coeff)).type_as(predict_lbl_0)
         # mask = mask.repeat(predict_lbl_0.size(0), 1)  # We dont need to repeat the correlation mask in multi
         self.loss_reg = self.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
         

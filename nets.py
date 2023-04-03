@@ -172,8 +172,8 @@ class F_mapping_multi(nn.Module):
         x = x * coeffs
 
         # Scaling factor for inference only
-        if not training:
-            x = x * (1 + self.n_attributes) / 2
+        # if not training:
+        #     x = x * (1 + self.n_attributes) / 2
 
         x = x.reshape(1, -1)
 

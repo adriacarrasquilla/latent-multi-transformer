@@ -33,7 +33,7 @@ from constants import ATTR_TO_NUM
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='eval', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='new_train', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -102,7 +102,7 @@ testdata_dir = './data/ffhq/'
 n_steps = 5
 scale = 2.0
 
-save_dir = './outputs/evaluation/'
+save_dir = './outputs/evaluation/new_train'
 os.makedirs(save_dir, exist_ok=True)
 
 log_dir = os.path.join(opts.log_path, opts.config) + '/'
@@ -292,7 +292,7 @@ def all_n_experiment(multi=True, single=True):
         losses_m = np.zeros((len(attrs), 4))
         for i in range(1,21):
             losses_m[i-1] = eval_multi_n(i)
-        np.save("outputs/evaluation/n_multi.npy",losses_m)
+        np.save("outputs/evaluation/n_multi_new.npy",losses_m)
 
     if single:
         losses_s = np.zeros((len(attrs), 4))
@@ -302,7 +302,7 @@ def all_n_experiment(multi=True, single=True):
 
 
 def plot_n_comparison():
-    multi = np.load("outputs/evaluation/n_multi.npy").T
+    multi = np.load("outputs/evaluation/n_multi_new.npy").T
     single = np.load("outputs/evaluation/n_single.npy").T
 
     loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
@@ -351,13 +351,14 @@ def plot_overall():
     ax.set_yscale('log')
     ax.legend()
 
-    plt.savefig(f"out_images/eval_overall.png", bbox_inches="tight")
+    plt.savefig(f"out_images/eval_overall_new.png", bbox_inches="tight")
     # plt.show()
 
 
 if __name__ == "__main__":
-    # plot_n_comparison()
-    plot_overall()
+    all_n_experiment(single=False)
+    plot_n_comparison()
+    # plot_overall()
 
 
 """
