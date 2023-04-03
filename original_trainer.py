@@ -114,6 +114,21 @@ class Trainer(nn.Module):
         corr_vec[corr_vec>=threshold] = 1
         return 1 - corr_vec
 
+    def get_correlation_multi(self, attr_nums, threshold=1, coeffs=None):
+        if self.corr_ma is None:
+            lbls = np.load(self.label_file)
+            self.corr_ma = np.corrcoef(lbls.transpose())
+            self.corr_ma[np.isnan(self.corr_ma)] = 0
+
+        if coeffs is not None:
+            attr_nums = [a[0].item() for a in coeffs.nonzero()]
+
+        corr_vec = np.abs(self.corr_ma[attr_nums, :])
+        corr_vec[corr_vec>=threshold] = 1
+        corr_vec = np.max(corr_vec, axis=0)
+
+        return 1 - corr_vec
+
     def get_coeff(self, x):
         sign_0 = F.relu(x-0.5).sign()
         sign_1 = F.relu(0.5-x).sign()

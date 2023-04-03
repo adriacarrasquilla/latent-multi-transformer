@@ -33,7 +33,7 @@ from constants import ATTR_TO_NUM
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='new_train', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='triple_train', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -62,6 +62,8 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
     attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_nums]
 
     target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+    coeff_idx = coeff.nonzero(as_tuple=True)[0].tolist()
+    target_pb = target_pb[coeff_idx]
 
     predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w.size(0), -1))
 
@@ -70,8 +72,11 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
     F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
     mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
 
-    loss_pb = trainer.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums],
-                                target_pb, reduction='none')*mask_pb
+    pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums]
+    loss_pb = trainer.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')*mask_pb
+
+    # loss_pb = trainer.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums],
+    #                             target_pb, reduction='none')*mask_pb
     loss_pb = loss_pb.mean()
 
     # Latent code recon
@@ -79,7 +84,7 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
 
     # Reg loss
     threshold_val = 1 # if 'corr_threshold' not in self.config else self.config['corr_threshold']
-    mask = torch.tensor(trainer.get_correlation(attr_nums[0], threshold=threshold_val)).type_as(predict_lbl_0)
+    mask = torch.tensor(trainer.get_correlation_multi(attr_nums, threshold=threshold_val, coeffs=coeff)).type_as(predict_lbl_0)
     mask = mask.repeat(predict_lbl_0.size(0), 1)
     loss_reg = trainer.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
     
@@ -245,7 +250,7 @@ def eval_single_n(n=1):
         trainer.to(DEVICE)
 
 
-        coeffs = np.load(testdata_dir + "labels/overall.npy")
+        coeffs = np.load(testdata_dir + "labels/all.npy")
 
         losses = torch.zeros((n_samples, 4)).to(DEVICE)
 
@@ -287,22 +292,22 @@ def eval_single_n(n=1):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def all_n_experiment(multi=True, single=True):
+def all_n_experiment(suffix="", multi=True, single=True):
     if multi:
         losses_m = np.zeros((len(attrs), 4))
         for i in range(1,21):
             losses_m[i-1] = eval_multi_n(i)
-        np.save("outputs/evaluation/n_multi_new.npy",losses_m)
+        np.save(f"outputs/evaluation/n_multi{suffix}.npy",losses_m)
 
     if single:
         losses_s = np.zeros((len(attrs), 4))
         for i in range(1,21):
             losses_s[i-1] = eval_single_n(i)
-        np.save("outputs/evaluation/n_single.npy",losses_s)
+        np.save(f"outputs/evaluation/n_single.npy",losses_s)
 
 
-def plot_n_comparison():
-    multi = np.load("outputs/evaluation/n_multi_new.npy").T
+def plot_n_comparison(suffix=""):
+    multi = np.load(f"outputs/evaluation/n_multi{suffix}.npy").T
     single = np.load("outputs/evaluation/n_single.npy").T
 
     loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
@@ -319,7 +324,7 @@ def plot_n_comparison():
         plt.savefig(f"out_images/n_eval_{title}.png", bbox_inches="tight")
         plt.clf()
 
-def plot_overall():
+def plot_overall(suffix=""):
     multi = eval_multi(save_img=False)
     single = eval_single(save_img=False)
 
@@ -351,14 +356,14 @@ def plot_overall():
     ax.set_yscale('log')
     ax.legend()
 
-    plt.savefig(f"out_images/eval_overall_new.png", bbox_inches="tight")
+    plt.savefig(f"out_images/eval_overall{suffix}.png", bbox_inches="tight")
     # plt.show()
 
 
 if __name__ == "__main__":
-    all_n_experiment(single=False)
-    plot_n_comparison()
-    # plot_overall()
+    # plot_overall(suffix="_triple")
+    all_n_experiment(single=False, suffix="_triple")
+    plot_n_comparison(suffix="_triple")
 
 
 """
