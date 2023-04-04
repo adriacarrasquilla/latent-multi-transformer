@@ -34,73 +34,9 @@ from constants import ATTR_TO_NUM
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='triple_train', help='Path to the config file.')
-parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
-parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
-parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
-parser.add_argument('--classifier_model_path', type=str, default='./models/latent_classifier_epoch_20.pth', help='pretrained attribute classifier')
-parser.add_argument('--log_path', type=str, default='./logs/', help='log file path')
 opts = parser.parse_args()
 
-# Celeba attribute list
-attr_dict = {'5_o_Clock_Shadow': 0, 'Arched_Eyebrows': 1, 'Attractive': 2, 'Bags_Under_Eyes': 3, \
-            'Bald': 4, 'Bangs': 5, 'Big_Lips': 6, 'Big_Nose': 7, 'Black_Hair': 8, 'Blond_Hair': 9, \
-            'Blurry': 10, 'Brown_Hair': 11, 'Bushy_Eyebrows': 12, 'Chubby': 13, 'Double_Chin': 14, \
-            'Eyeglasses': 15, 'Goatee': 16, 'Gray_Hair': 17, 'Heavy_Makeup': 18, 'High_Cheekbones': 19, \
-            'Male': 20, 'Mouth_Slightly_Open': 21, 'Mustache': 22, 'Narrow_Eyes': 23, 'No_Beard': 24, \
-            'Oval_Face': 25, 'Pale_Skin': 26, 'Pointy_Nose': 27, 'Receding_Hairline': 28, 'Rosy_Cheeks': 29, \
-            'Sideburns': 30, 'Smiling': 31, 'Straight_Hair': 32, 'Wavy_Hair': 33, 'Wearing_Earrings': 34, \
-            'Wearing_Hat': 35, 'Wearing_Lipstick': 36, 'Wearing_Necklace': 37, 'Wearing_Necktie': 38, 'Young': 39}
-
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
-
-
-def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
-    w_0 = w
-    predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w.size(0), -1))
-    lbl_0 = torch.sigmoid(predict_lbl_0)
-
-    attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_nums]
-
-    target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
-    coeff_idx = coeff.nonzero(as_tuple=True)[0].tolist()
-    target_pb = target_pb[coeff_idx]
-
-    predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w.size(0), -1))
-
-    # Pb loss
-    T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
-    F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
-    mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
-
-    pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums]
-    loss_pb = trainer.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')*mask_pb
-
-    # loss_pb = trainer.BCEloss(predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums],
-    #                             target_pb, reduction='none')*mask_pb
-    loss_pb = loss_pb.mean()
-
-    # Latent code recon
-    loss_recon = trainer.MSEloss(w_1, w_0)
-
-    # Reg loss
-    threshold_val = 1 # if 'corr_threshold' not in self.config else self.config['corr_threshold']
-    mask = torch.tensor(trainer.get_correlation_multi(attr_nums, threshold=threshold_val, coeffs=coeff)).type_as(predict_lbl_0)
-    mask = mask.repeat(predict_lbl_0.size(0), 1)
-    loss_reg = trainer.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
-    
-    # Total loss
-    w_recon, w_pb, w_reg = config['w']['recon'], config['w']['pb'], config['w']['reg']
-    loss =  w_pb * loss_pb + w_recon*loss_recon + w_reg * loss_reg
-
-    return loss, w_pb * loss_pb, w_reg * loss_reg, w_recon * loss_recon
-
-
-########################################################################################################################
-# Generate manipulated samples for evaluation
-# For the evaluation data, we project the first 1K images of FFHQ into the the latent space W+ of StyleGAN. 
-# TODO: write what we do to evaluate
-# 
-########################################################################################################################
 
 # Load input latent codes
 testdata_dir = './data/ffhq/'
@@ -118,6 +54,45 @@ attr_num = [ATTR_TO_NUM[a] for a in attrs]
 model = f"{n_attrs}_attrs"
 
 n_samples = 1000
+
+
+def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
+    w_0 = w
+    predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w.size(0), -1))
+    lbl_0 = torch.sigmoid(predict_lbl_0)
+
+    attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), attr_nums]
+
+    coeff_idx = coeff.nonzero(as_tuple=True)[0].tolist()
+
+    target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
+    target_pb = target_pb[coeff_idx]
+
+    predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w.size(0), -1))
+
+    # Pb loss
+    T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
+    F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
+    mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+
+    pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), attr_nums]
+    loss_pb = trainer.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')*mask_pb
+
+    loss_pb = loss_pb.mean()
+
+    # Latent code recon
+    loss_recon = trainer.MSEloss(w_1, w_0)
+
+    # Reg loss
+    mask = torch.tensor(trainer.get_correlation_multi(attr_nums, threshold=1, coeffs=coeff)).type_as(predict_lbl_0)
+    # mask = mask.repeat(predict_lbl_0.size(0), 1)
+    loss_reg = trainer.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
+    
+    # Total loss
+    w_recon, w_pb, w_reg = config['w']['recon'], config['w']['pb'], config['w']['reg']
+    loss =  w_pb * loss_pb + w_recon*loss_recon + w_reg * loss_reg
+
+    return loss, w_pb * loss_pb, w_reg * loss_reg, w_recon * loss_recon
 
 
 def eval_multi(save_img=True):
@@ -196,10 +171,10 @@ def eval_single(save_img=True):
     with torch.no_grad():
         
         log_dir_single = os.path.join(opts.log_path, "001") + '/'
+
         # Initialize trainer
         trainer = SingleTrainer(config, None, None, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
-
 
         coeffs = np.load(testdata_dir + "labels/overall.npy")
 
@@ -215,10 +190,12 @@ def eval_single(save_img=True):
             coeff = coeffs[k]
 
             for i, c in enumerate(coeff):
+
                 if c == 0:
                     # skip attributes without coefficient
                     continue
-                trainer.attr_num = attr_dict[attrs[i]]
+
+                trainer.attr_num = ATTR_TO_NUM[attrs[i]]
                 trainer.load_model(log_dir_single)
                 trainer.to(DEVICE)
                 c = torch.tensor(c).to(DEVICE)
@@ -240,15 +217,16 @@ def eval_single(save_img=True):
 
         return losses.mean(dim=0).detach().cpu().numpy()
 
+
 def eval_single_n(n=1):
     with torch.no_grad():
         
         log_dir_single = os.path.join(opts.log_path, "001") + '/'
+
         # Initialize trainer
         trainer = SingleTrainer(config, None, None, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
         trainer.to(DEVICE)
-
 
         coeffs = np.load(testdata_dir + "labels/all.npy")
 
@@ -266,10 +244,12 @@ def eval_single_n(n=1):
             w_prev = w_0
 
             for i, c in enumerate(coeff):
+
                 if c == 0:
                     # skip attributes without coefficient
                     continue
-                trainer.attr_num = attr_dict[attrs[i]]
+
+                trainer.attr_num = ATTR_TO_NUM[attrs[i]]
                 trainer.load_model(log_dir_single)
                 trainer.to(DEVICE)
                 c = torch.tensor(c).to(DEVICE)
@@ -324,6 +304,7 @@ def plot_n_comparison(suffix=""):
         plt.savefig(f"out_images/n_eval_{title}.png", bbox_inches="tight")
         plt.clf()
 
+
 def plot_overall(suffix=""):
     multi = eval_multi(save_img=False)
     single = eval_single(save_img=False)
@@ -364,12 +345,3 @@ if __name__ == "__main__":
     # plot_overall(suffix="_triple")
     all_n_experiment(single=False, suffix="_triple")
     plot_n_comparison(suffix="_triple")
-
-
-"""
-#FFC300
-#FF5733
-#C70039
-#900C3F
-#581845
-"""
