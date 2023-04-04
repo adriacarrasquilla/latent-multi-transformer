@@ -34,6 +34,10 @@ from constants import ATTR_TO_NUM
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='triple_train', help='Path to the config file.')
+parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
+parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
+parser.add_argument('--classifier_model_path', type=str, default='./models/latent_classifier_epoch_20.pth', help='pretrained attribute classifier')
+parser.add_argument('--log_path', type=str, default='./logs/', help='log file path')
 opts = parser.parse_args()
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
