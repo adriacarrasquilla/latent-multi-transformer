@@ -5,12 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 import seaborn as sns
-from attr_dict import ATTR_TO_NUM
 
 from datasets import *
 from nets import *
 
-from constants import NUM_TO_ATTR, DEVICE
+from constants import NUM_TO_ATTR, DEVICE, ATTR_TO_NUM
 
 import sys
 import numpy

@@ -4,7 +4,7 @@ import yaml
 
 import numpy as np
 import torch
-from attr_dict import ATTR_TO_NUM
+from constants import ATTR_TO_NUM
 
 from trainer import Trainer
 from nets import LCNet
