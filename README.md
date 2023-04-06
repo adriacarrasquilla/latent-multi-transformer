@@ -1,6 +1,8 @@
 ## A Latent Transformer for Disentangled Face Editing in Images and Videos
 
-Official implementation for paper: A Latent Transformer for Disentangled Face Editing in Images and Videos. 
+DISCLAIMER: This is a WIP. The contents of the README refer to the original work. It needs to be updated yet.
+
+Fork of the implementation for paper: A Latent Transformer for Disentangled Face Editing in Images and Videos. 
 
 [[Video Editing Results]](https://drive.google.com/drive/folders/1aIfmbgJL1CUFgZQzqDVaUtLHrqxS6QjP?usp=sharing)
 
