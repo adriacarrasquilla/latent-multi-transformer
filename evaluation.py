@@ -99,7 +99,7 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
     return loss, w_pb * loss_pb, w_reg * loss_reg, w_recon * loss_recon
 
 
-def eval_multi(save_img=True):
+def eval_multi(save_img=True, scaling=1):
     with torch.no_grad():
         
         # Initialize trainer
@@ -119,7 +119,7 @@ def eval_multi(save_img=True):
 
             coeff = torch.tensor(coeffs[k]).to(DEVICE)
 
-            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff.unsqueeze(0), training=False)
+            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff.unsqueeze(0), scaling=scaling)
             w_1 = w_1.view(w_0.size())
 
             loss, loss_pb, loss_reg, loss_recon = compute_sequential_loss(w_0, w_1, attr_num, coeff, trainer)
@@ -134,7 +134,7 @@ def eval_multi(save_img=True):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def eval_multi_n(n=1):
+def eval_multi_n(n=1, scaling=1):
     with torch.no_grad():
         
         # Initialize trainer
@@ -147,7 +147,7 @@ def eval_multi_n(n=1):
 
         losses = torch.zeros((n_samples, 4)).to(DEVICE)
 
-        for k in track(range(n_samples), f"Evaluating Multi model for {n} attributes..."):
+        for k in track(range(n_samples), f"Evaluating Multi model for {n} attributes, scaling = {scaling}..."):
             local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
 
             w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
@@ -157,7 +157,7 @@ def eval_multi_n(n=1):
             coeff[local_attrs] = coeffs[k][local_attrs]
             coeff = torch.tensor(coeff).to(DEVICE)
 
-            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff.unsqueeze(0), training=False)
+            w_1 = trainer.T_net(w_0.view(w_0.size(0), -1), coeff.unsqueeze(0), scaling=scaling)
             w_1 = w_1.view(w_0.size())
 
             loss, loss_pb, loss_reg, loss_recon = compute_sequential_loss(w_0, w_1, attr_num, coeff, trainer)
@@ -276,11 +276,11 @@ def eval_single_n(n=1):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def all_n_experiment(suffix="", multi=True, single=True):
+def all_n_experiment(suffix="", multi=True, single=True, scaling=1):
     if multi:
         losses_m = np.zeros((len(attrs), 4))
         for i in range(1,21):
-            losses_m[i-1] = eval_multi_n(i)
+            losses_m[i-1] = eval_multi_n(i, scaling=scaling)
         np.save(f"outputs/evaluation/n_multi{suffix}.npy",losses_m)
 
     if single:
@@ -290,15 +290,22 @@ def all_n_experiment(suffix="", multi=True, single=True):
         np.save(f"outputs/evaluation/n_single.npy",losses_s)
 
 
-def plot_n_comparison(suffix=""):
-    multi = np.load(f"outputs/evaluation/n_multi{suffix}.npy").T
+def plot_n_comparison(suffix="", suffixes=None):
     single = np.load("outputs/evaluation/n_single.npy").T
 
     loss_titles = ["Total", "Class", "Attr_Reg", "Identity_Recon"]
 
     for i, title in enumerate(loss_titles):
         plt.figure(figsize=(12,8))
-        plt.plot(range(1,len(multi[i])+1), multi[i], label="MultiAttr")
+
+        if suffixes:
+            for s in suffixes:
+                multi = np.load(f"outputs/evaluation/n_multi{s}.npy").T
+                plt.plot(range(1,len(multi[i])+1), multi[i], label=f"MultiAttr: {s}")
+        else:
+            multi = np.load(f"outputs/evaluation/n_multi{suffix}.npy").T
+            plt.plot(range(1,len(multi[i])+1), multi[i], label="MultiAttr")
+
         plt.plot(range(1,len(single[i])+1), single[i], label="SingleAttr")
         plt.title(title, fontsize=16)
         plt.xticks(range(1,len(single[i])+1))
@@ -347,5 +354,9 @@ def plot_overall(suffix=""):
 
 if __name__ == "__main__":
     # plot_overall(suffix="_triple")
-    all_n_experiment(single=False, suffix="_triple")
-    plot_n_comparison(suffix="_triple")
+    scaling_factors = [1, 1.5, 2, 2.5, 3]
+    for scaling in scaling_factors:
+        all_n_experiment(multi=True, single=False, suffix=f"_{scaling}", scaling=scaling)
+
+    suffixes = [f"_{s}" for s in scaling_factors]
+    plot_n_comparison(suffixes=suffixes)

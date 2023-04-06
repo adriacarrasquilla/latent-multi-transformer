@@ -29,7 +29,7 @@ from constants import NUM_TO_ATTR, DEVICE
 
 
 class Trainer(nn.Module):
-    def __init__(self, config, attr_num, attr, label_file, training=True):
+    def __init__(self, config, attr_num, attr, label_file, scaling=1):
         super(Trainer, self).__init__()
         # Load Hyperparameters
         self.accumulation_steps = 16
@@ -44,7 +44,7 @@ class Trainer(nn.Module):
         self.attr = attr[0]
 
         # To control inference only
-        self.training = training
+        self.scaling = scaling
 
         # self.attr_num = attr_num[0]
         # self.attr = attr[0]
@@ -177,7 +177,7 @@ class Trainer(nn.Module):
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
         # Apply latent transformation
-        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff, training=self.training)
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff, scaling=self.scaling)
         self.w_1 = self.w_1.view(w.size())
         predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
 
@@ -214,7 +214,7 @@ class Trainer(nn.Module):
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
 
         # Apply latent transformation
-        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0), training=self.training)
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0), scaling=self.scaling)
         self.w_1 = self.w_1.view(w.size())
         predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
 
@@ -261,7 +261,7 @@ class Trainer(nn.Module):
         # coeff_scaled = 10 * coeff.type_as(attr_pb_0)
 
         # Apply latent transformation
-        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0), training=self.training)
+        self.w_1 = self.T_net(self.w_0.view(w.size(0), -1), coeff.unsqueeze(0), scaling=self.scaling)
         self.w_1 = self.w_1.view(w.size())
         predict_lbl_1 = self.Latent_Classifier(self.w_1.view(w.size(0), -1))
 
@@ -313,7 +313,7 @@ class Trainer(nn.Module):
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
 
-        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0), training=self.training)
+        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0), scaling=self.scaling)
         w_1 = w_1.view(w.size())
         self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
         self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
@@ -348,7 +348,7 @@ class Trainer(nn.Module):
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
 
-        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0), training=self.training)
+        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0), scaling=self.scaling)
         w_1 = w_1.view(w.size())
         self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
         self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)

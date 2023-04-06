@@ -23,7 +23,7 @@ model = "comp2"
 model = f"{n_attrs}_attrs"
 
 # Init trainer
-trainer = Trainer(config, attr_num, attrs, LABEL_FILE, training=False)
+trainer = Trainer(config, attr_num, attrs, LABEL_FILE, scaling=1)
 trainer.initialize(STYLEGAN, CLASSIFIER)
 trainer.load_model_multi(LOG_DIR + experiment, model)
 trainer.to(DEVICE)

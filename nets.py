@@ -154,7 +154,7 @@ class F_mapping_multi(nn.Module):
         self.fc0 = Dense_layer(mapping_fmaps * mapping_layers, mapping_fmaps)
         self.fc = Dense_layer(n_attributes * mapping_fmaps, mapping_fmaps*mapping_layers)
         
-    def forward(self, latents_in, coeffs, training=True):
+    def forward(self, latents_in, coeffs, scaling=1):
         # Inputs.
         latents_in = latents_in.type(self.dtype)
         
@@ -169,7 +169,7 @@ class F_mapping_multi(nn.Module):
         x = apply_bias_act(self.fc0(x))
 
         coeffs = coeffs.transpose(0,1)
-        x = x * coeffs
+        x = x * coeffs * scaling
 
         # Scaling factor for inference only
         # if not training:
