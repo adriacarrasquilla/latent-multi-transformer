@@ -220,7 +220,7 @@ class Trainer(nn.Module):
         # self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
         self.local_attr = "multi"
         # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
-        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
+        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
 
         coeff = self.get_coeff(attr_pb_0)
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
@@ -244,35 +244,8 @@ class Trainer(nn.Module):
     def log_image(self, logger, w, n_iter):
         with torch.no_grad():
             self.get_image(w)
-        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
-        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
-
-    def get_image_verbose(self, w):
-        # Original image
-        predict_lbl_0 = self.Latent_Classifier(w.view(w.size(0), -1))
-        lbl_0 = torch.sigmoid(predict_lbl_0)
-        # attr_pb_0 = lbl_0[:, self.attr_num] # TODO: find a global way to do this, or do separate functions
-        self.attr_num = torch.argmax(lbl_0, axis=1)
-        self.local_attr = NUM_TO_ATTR[self.attr_num.item()]
-        # attr_pb_1 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_num]
-        attr_pb_0 = lbl_0[torch.arange(lbl_0.shape[0]), self.attr_nums]
-
-        coeff = self.get_coeff(attr_pb_0)
-        target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
-
-        if 'alpha' in self.config and not self.config['alpha']:
-            coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
-
-        w_1 = self.T_net(w.view(w.size(0), -1), coeff.unsqueeze(0))
-        w_1 = w_1.view(w.size())
-        self.x_0, _ = self.StyleGAN([w], input_is_latent=True, randomize_noise=False)
-        self.x_1, _ = self.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
-
-        predict_lbl_1 = self.Latent_Classifier(w_1.view(w.size(0), -1))
-
-        predict = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums]
-
-        return attr_pb_0, target_pb, predict
+        logger.add_image('image_'+str(self.attr)+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+str(self.attr)+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
 
     def log_image_verbose(self, logger, w, n_iter):
         with torch.no_grad():
@@ -280,16 +253,14 @@ class Trainer(nn.Module):
         suffix = ""
         for o, t, p in zip(org, target, predict):
             suffix += f",org_{o.item():.2f},target_{t.item():.2f},pred_{p.item():.2f}"
-        # logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_input_{self.local_attr}', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
-        # logger.add_image('image_'+self.attr+'/iter'+str(n_iter+1)+f'_modif_{self.local_attr}', clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
-        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+'input', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
-        logger.add_image('image_'+str(self.attrs)+'/iter'+str(n_iter+1)+'modif'+suffix, clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
+        logger.add_image('image_'+str(self.attr)+'/iter'+str(n_iter+1)+'input', clip_img(downscale(self.x_0, 2))[0], n_iter + 1)
+        logger.add_image('image_'+str(self.attr)+'/iter'+str(n_iter+1)+'modif'+suffix, clip_img(downscale(self.x_1, 2))[0], n_iter + 1)
         
     def log_loss(self, logger, n_iter):
-        logger.add_scalar('loss_'+str(self.attrs)+'/class', self.loss_pb.item(), n_iter + 1)
-        logger.add_scalar('loss_'+str(self.attrs)+'/latent_recon', self.loss_recon.item(), n_iter + 1)
-        logger.add_scalar('loss_'+str(self.attrs)+'/attr_reg', self.loss_reg.item(), n_iter + 1)
-        logger.add_scalar('loss_'+str(self.attrs)+'/total', self.loss.item(), n_iter + 1)
+        logger.add_scalar('loss_'+str(self.attr)+'/class', self.loss_pb.item(), n_iter + 1)
+        logger.add_scalar('loss_'+str(self.attr)+'/latent_recon', self.loss_recon.item(), n_iter + 1)
+        logger.add_scalar('loss_'+str(self.attr)+'/attr_reg', self.loss_reg.item(), n_iter + 1)
+        logger.add_scalar('loss_'+str(self.attr)+'/total', self.loss.item(), n_iter + 1)
 
     def save_image(self, log_dir, w, n_iter):
         with torch.no_grad():
@@ -304,7 +275,7 @@ class Trainer(nn.Module):
         if name:
             filename = log_dir + '/tnet_' + name +'.pth.tar'
         else:
-            filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_nums) +'.pth.tar'
+            filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_num) +'.pth.tar'
 
         torch.save(self.T_net.state_dict(), filename)
 
@@ -323,13 +294,6 @@ class Trainer(nn.Module):
     def load_model(self, log_dir):
         self.T_net.load_state_dict(torch.load(log_dir + 'tnet_' + str(self.attr_num) +'.pth.tar', map_location=DEVICE))
 
-    def load_model_multi(self, log_dir, name=None):
-        if name:
-            filename = log_dir + '/tnet_' + name +'.pth.tar'
-        else:
-            filename = log_dir + '/tnet_' + "_".join(str(n) for n in self.attr_nums) +'.pth.tar'
-        self.T_net.load_state_dict(torch.load(filename, map_location=DEVICE))
-
     def load_checkpoint(self, checkpoint_path):
         state_dict = torch.load(checkpoint_path, map_location=DEVICE)
         self.T_net.load_state_dict(state_dict['T_net_state_dict'])
@@ -340,6 +304,6 @@ class Trainer(nn.Module):
     def update(self, w, mask, n_iter):
         self.n_iter = n_iter
         self.optimizer.zero_grad()
-        self.compute_loss_multi(w, mask, n_iter).backward()
+        self.compute_loss(w, mask, n_iter).backward()
         self.optimizer.step()
         
