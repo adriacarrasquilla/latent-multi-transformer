@@ -33,7 +33,7 @@ from constants import ATTR_TO_NUM
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='triple_train', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='new_train', help='Path to the config file.')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
 parser.add_argument('--classifier_model_path', type=str, default='./models/latent_classifier_epoch_20.pth', help='pretrained attribute classifier')
@@ -41,6 +41,8 @@ parser.add_argument('--log_path', type=str, default='./logs/', help='log file pa
 opts = parser.parse_args()
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
+exp = opts.config
+os.makedirs(f"./out_images/{exp}", exist_ok=True)
 
 # Load input latent codes
 testdata_dir = './data/ffhq/'
@@ -48,6 +50,8 @@ n_steps = 5
 scale = 2.0
 
 save_dir = './outputs/evaluation/new_train'
+log_dir_single = os.path.join(opts.log_path, "original_train") + '/'
+
 os.makedirs(save_dir, exist_ok=True)
 
 log_dir = os.path.join(opts.log_path, opts.config) + '/'
@@ -174,8 +178,6 @@ def eval_multi_n(n=1, scaling=1):
 def eval_single(save_img=True):
     with torch.no_grad():
         
-        log_dir_single = os.path.join(opts.log_path, "001") + '/'
-
         # Initialize trainer
         trainer = SingleTrainer(config, None, None, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
@@ -225,8 +227,6 @@ def eval_single(save_img=True):
 def eval_single_n(n=1):
     with torch.no_grad():
         
-        log_dir_single = os.path.join(opts.log_path, "001") + '/'
-
         # Initialize trainer
         trainer = SingleTrainer(config, None, None, opts.label_file)
         trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
@@ -312,13 +312,13 @@ def plot_n_comparison(suffix="", suffixes=None):
         plt.legend(fontsize=12)
         plt.xlabel("Number of attributes", fontsize=12)
         plt.ylabel("Loss", fontsize=12)
-        plt.savefig(f"out_images/n_eval_{title}.png", bbox_inches="tight")
+        plt.savefig(f"out_images/{exp}/n_eval_{title}.png", bbox_inches="tight")
         plt.clf()
 
 
 def plot_overall(suffix=""):
-    multi = eval_multi(save_img=False)
     single = eval_single(save_img=False)
+    multi = eval_multi(save_img=False)
 
     # Mock values
     # multi = [1,2,3,4]
@@ -348,15 +348,22 @@ def plot_overall(suffix=""):
     ax.set_yscale('log')
     ax.legend()
 
-    plt.savefig(f"out_images/eval_overall{suffix}.png", bbox_inches="tight")
+    plt.savefig(f"out_images/{exp}/eval_overall{suffix}.png", bbox_inches="tight")
     # plt.show()
 
 
 if __name__ == "__main__":
-    # plot_overall(suffix="_triple")
-    scaling_factors = [1, 1.5, 2, 2.5, 3]
-    for scaling in scaling_factors:
-        all_n_experiment(multi=True, single=False, suffix=f"_{scaling}", scaling=scaling)
+    plot_overall(suffix="_vs_original")
 
-    suffixes = [f"_{s}" for s in scaling_factors]
-    plot_n_comparison(suffixes=suffixes)
+    scaling_exp = True
+    if scaling_exp:
+        scaling_factors = [1, 1.5, 2, 2.5, 3]
+        for scaling in scaling_factors:
+            all_n_experiment(multi=True, single=False, suffix=f"_{scaling}", scaling=scaling)
+
+        suffixes = [f"_{s}" for s in scaling_factors]
+    else:
+        all_n_experiment(multi=True, single=True, suffix=f"_vs_original")
+        suffixes = None
+    
+    plot_n_comparison(suffix="_vs_original", suffixes=suffixes)
