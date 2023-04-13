@@ -12,7 +12,7 @@ from trainer import Trainer
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
 # experiment = "limit_scaled"
-experiment = "triple_train"
+experiment = "no_pb_mask"
 n_attrs = 20
 
 # Load basic config

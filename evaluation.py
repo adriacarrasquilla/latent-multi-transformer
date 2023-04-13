@@ -41,20 +41,16 @@ parser.add_argument('--log_path', type=str, default='./logs/', help='log file pa
 opts = parser.parse_args()
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
-exp = opts.config
-os.makedirs(f"./out_images/{exp}", exist_ok=True)
+
+save_dir = f'./outputs/evaluation/{opts.config}'
+os.makedirs(save_dir, exist_ok=True)
+
+log_dir_single = os.path.join(opts.log_path, "original_train") + '/'
+log_dir = os.path.join(opts.log_path, opts.config) + '/'
 
 # Load input latent codes
 testdata_dir = './data/ffhq/'
 n_steps = 5
-scale = 2.0
-
-save_dir = './outputs/evaluation/new_train'
-log_dir_single = os.path.join(opts.log_path, "original_train") + '/'
-
-os.makedirs(save_dir, exist_ok=True)
-
-log_dir = os.path.join(opts.log_path, opts.config) + '/'
 
 n_attrs = 20
 attrs = config['attr'].split(',')
@@ -103,7 +99,7 @@ def compute_sequential_loss(w, w_1, attr_nums, coeff, trainer):
     return loss, w_pb * loss_pb, w_reg * loss_reg, w_recon * loss_recon
 
 
-def eval_multi(save_img=True, scaling=1):
+def eval_multi(save_img=True, scaling=1.0):
     with torch.no_grad():
         
         # Initialize trainer
@@ -138,7 +134,7 @@ def eval_multi(save_img=True, scaling=1):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def eval_multi_n(n=1, scaling=1):
+def eval_multi_n(n=1, scaling=1, rand_attr=True, save_img=False):
     with torch.no_grad():
         
         # Initialize trainer
@@ -152,7 +148,10 @@ def eval_multi_n(n=1, scaling=1):
         losses = torch.zeros((n_samples, 4)).to(DEVICE)
 
         for k in track(range(n_samples), f"Evaluating Multi model for {n} attributes, scaling = {scaling}..."):
-            local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
+            if rand_attr:
+                local_attrs = random.sample(range(coeffs.shape[1]), n) # random.randint(1,n))
+            else:
+                local_attrs = list(range(n))
 
             w_0 = np.load(testdata_dir + 'latent_code_%05d.npy' % k)
             w_0 = torch.tensor(w_0).to(DEVICE)
@@ -168,7 +167,7 @@ def eval_multi_n(n=1, scaling=1):
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
 
-            if k == 500:
+            if k == 100 and save_img:
                 w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
                 x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
                 utils.save_image(clip_img(x_1), save_dir + f"multi_{n}_attrs_" + str(k) + '.jpg')
@@ -224,7 +223,7 @@ def eval_single(save_img=True):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def eval_single_n(n=1):
+def eval_single_n(n=1, rand_attr=True, save_img=False):
     with torch.no_grad():
         
         # Initialize trainer
@@ -237,7 +236,10 @@ def eval_single_n(n=1):
         losses = torch.zeros((n_samples, 4)).to(DEVICE)
 
         for k in track(range(n_samples), f"Evaluating Single for {n} attributes..."):
-            local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
+            if rand_attr:
+                local_attrs = random.sample(range(coeffs.shape[1]), random.randint(1,n))
+            else:
+                local_attrs = list(range(n))
 
             coeff = np.zeros_like(coeffs[k])
             coeff[local_attrs] = coeffs[k][local_attrs]
@@ -268,7 +270,7 @@ def eval_single_n(n=1):
 
             losses[k] = torch.tensor([loss.item(), loss_pb.item(), loss_reg, loss_recon]).to(DEVICE)
 
-            if k == 500:
+            if k == 100 and save_img:
                 w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
                 x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
                 utils.save_image(clip_img(x_1), save_dir + f"single_{n}_attrs_" + str(k) + '.jpg')
@@ -276,17 +278,17 @@ def eval_single_n(n=1):
         return losses.mean(dim=0).detach().cpu().numpy()
 
 
-def all_n_experiment(suffix="", multi=True, single=True, scaling=1):
+def all_n_experiment(suffix="", multi=True, single=True, scaling=1, rand_attr=True, save_img=False):
     if multi:
         losses_m = np.zeros((len(attrs), 4))
         for i in range(1,21):
-            losses_m[i-1] = eval_multi_n(i, scaling=scaling)
+            losses_m[i-1] = eval_multi_n(i, scaling=scaling, rand_attr=rand_attr, save_img=save_img)
         np.save(f"outputs/evaluation/n_multi{suffix}.npy",losses_m)
 
     if single:
         losses_s = np.zeros((len(attrs), 4))
         for i in range(1,21):
-            losses_s[i-1] = eval_single_n(i)
+            losses_s[i-1] = eval_single_n(i, rand_attr=rand_attr, save_img=save_img)
         np.save(f"outputs/evaluation/n_single.npy",losses_s)
 
 
@@ -312,17 +314,13 @@ def plot_n_comparison(suffix="", suffixes=None):
         plt.legend(fontsize=12)
         plt.xlabel("Number of attributes", fontsize=12)
         plt.ylabel("Loss", fontsize=12)
-        plt.savefig(f"out_images/{exp}/n_eval_{title}.png", bbox_inches="tight")
+        plt.savefig(f"{save_dir}/n_eval_{title}.png", bbox_inches="tight")
         plt.clf()
 
 
 def plot_overall(suffix=""):
     single = eval_single(save_img=False)
-    multi = eval_multi(save_img=False)
-
-    # Mock values
-    # multi = [1,2,3,4]
-    # single = [1,2,3,4]
+    multi = eval_multi(save_img=False, scaling=1.5)
 
     fig, ax = plt.subplots(figsize=(10,6))
     bar_width = 0.35
@@ -348,22 +346,23 @@ def plot_overall(suffix=""):
     ax.set_yscale('log')
     ax.legend()
 
-    plt.savefig(f"out_images/{exp}/eval_overall{suffix}.png", bbox_inches="tight")
-    # plt.show()
+    plt.savefig(f"{save_dir}/eval_overall{suffix}.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
-    plot_overall(suffix="_vs_original")
+    # plot_overall(suffix="_vs_original")
 
-    scaling_exp = True
+    rand = True
+    save_img = True
+    scaling_exp = False
     if scaling_exp:
-        scaling_factors = [1, 1.5, 2, 2.5, 3]
+        scaling_factors = [1, 1.5, 2, 3]
         for scaling in scaling_factors:
-            all_n_experiment(multi=True, single=False, suffix=f"_{scaling}", scaling=scaling)
+            all_n_experiment(multi=True, single=False, suffix=f"_{scaling}", scaling=scaling, rand_attr=rand, save_img=save_img)
 
         suffixes = [f"_{s}" for s in scaling_factors]
     else:
-        all_n_experiment(multi=True, single=True, suffix=f"_vs_original")
+        all_n_experiment(multi=True, single=True, suffix=f"_vs_original", rand_attr=rand, save_img=save_img)
         suffixes = None
     
     plot_n_comparison(suffix="_vs_original", suffixes=suffixes)

@@ -42,12 +42,13 @@ opts = parser.parse_args()
 
 log_dir = os.path.join(opts.log_path, opts.config) + '/'
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
-save_dir = opts.out_path + 'test/scaling/'
+save_dir = opts.out_path + 'test/no_pb_mask/'
 os.makedirs(save_dir, exist_ok=True)
 log_dir_single = os.path.join(opts.log_path, "original_train") + '/'
 
 local_attr_dict = {attr:i for i, attr in enumerate(config["attr"].split(","))}
-attributes = {'Bald': 1, 'Smiling': 1, 'Male': -1, 'No_Beard': -1, 'Arched_Eyebrows': 1, 'Eyeglasses': 1, 'Wearing_Lipstick':-1}
+attributes = {'Bald': 1, 'Smiling': 1, 'Male': -1, 'No_Beard': -1,
+              'Arched_Eyebrows': 1, 'Eyeglasses': 1, 'Wearing_Lipstick':-1}
 
 scales = [1, 1.5, 2, 2.5, 3]
 all_losses = {s: {"loss": [], "loss_pb": [], "loss_reg": [], "loss_recon": []} for s in scales + ["Single"]}

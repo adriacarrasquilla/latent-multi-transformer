@@ -3,18 +3,14 @@
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
 
-import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.data as data
 import random
 random.seed(1)
 
-from PIL import Image
-from torch.autograd import grad
-from torchvision import transforms, utils
+from torchvision import utils
 
 from nets import *
 from utils.functions import *
@@ -278,7 +274,7 @@ class Trainer(nn.Module):
         mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
 
         pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums]
-        self.loss_pb = self.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')*mask_pb
+        self.loss_pb = self.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none') # *mask_pb
         self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon
