@@ -77,7 +77,6 @@ times = []
 print(f"Training model for: {','.join(attrs)}")
 
 total_iter = 0
-# attr_num = attr_dict[attr1]
 attr_num = [attr_dict[a] for a in attrs]
 
 # Initialize trainer
