@@ -8,13 +8,12 @@ import argparse
 import os
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils.data as data
 import yaml
 
+from rich.progress import track
+
 from PIL import Image
-from torchvision import transforms, utils
 from torch.utils.tensorboard.writer import SummaryWriter
 
 # Set up to allow both gpu and cpu runtimes
@@ -34,7 +33,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='scaling', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='eval', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -62,7 +61,7 @@ if not os.path.exists(log_dir):
 logger = SummaryWriter(log_dir=log_dir)
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
-attr_l = config['attr'].split(',')
+attrs = config['attr'].split(',')
 batch_size = config['batch_size']
 epochs = config['epochs']
 
@@ -74,54 +73,38 @@ loader_A = data.DataLoader(dataset_A, batch_size=batch_size, shuffle=True)
 
 print('Start training!')
 times = []
-attr_it = iter(attr_l)
-for attr1 in attr_it:
-    print(f"Training attribute {attr1}")
 
-    attr2 = next(attr_it)
-    # attr3 = next(attr_it)
-    # attr1 = 'Smiling'
-    # attr2 = None
+print(f"Training model for: {','.join(attrs)}")
 
-    # attr1, attr2 = attr2, attr1
-    # Using this as a mock for multi attribute loading
-    attrs = [attr1, attr2] #, attr3]
-    
-    total_iter = 0
-    # attr_num = attr_dict[attr1]
-    attr_num = [attr_dict[attr1], attr_dict[attr2]] #, attr_dict[attr3]]
-    print(attrs)
-    # attr1 = "TEST"
-    # Initialize trainer
-    # trainer = Trainer(config, attr_num, attr1, opts.label_file)
-    trainer = Trainer(config, attr_num, attrs, opts.label_file)
-    trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
-    trainer.to(DEVICE)
+total_iter = 0
+attr_num = [attr_dict[a] for a in attrs]
 
-    for n_epoch in range(epochs):
-        t = time.time()
+# Initialize trainer
+trainer = Trainer(config, attr_num, attrs, opts.label_file)
+trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)   
+trainer.to(DEVICE)
 
-        for n_iter, list_A in enumerate(loader_A):
-            w_A, lbl_A = list_A
-            w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
-            trainer.update(w_A, None, n_iter)
+for n_epoch in range(epochs):
+    t = time.time()
 
-            if (total_iter+1) % config['log_iter'] == 0:
-                trainer.log_loss(logger, total_iter)
-            if (total_iter+1) % config['image_log_iter'] == 0:
-                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
+    for n_iter, list_A in track(enumerate(loader_A), "Training model..."):
+        w_A, lbl_A = list_A
+        w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
+        trainer.update(w_A, None, n_iter)
 
-            total_iter += 1
+        if (total_iter+1) % config['log_iter'] == 0:
+            trainer.log_loss(logger, total_iter)
+        if (total_iter+1) % config['image_log_iter'] == 0:
+            trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
 
-            if n_iter == 10000:
-                break
+        total_iter += 1
 
-        trainer.save_model_multi(log_dir)
-        e_time = time.time() - t
-        times.append(e_time)
-        print(f"Time for epoch {n_epoch}: {e_time}")
+        if n_iter == 5000:
+            break
 
-    print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")
+    trainer.save_model_multi(log_dir, name="20_attrs")
+    e_time = time.time() - t
+    times.append(e_time)
+    print(f"Time for epoch {n_epoch}: {e_time}")
+
+print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")
