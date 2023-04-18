@@ -12,7 +12,6 @@ import yaml
 
 from PIL import Image
 from torchvision import utils
-from tensorboard_logger import Logger
 
 from datasets import *
 from trainer import *

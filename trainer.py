@@ -6,13 +6,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import random
 random.seed(1)
 
 from torchvision import utils
 
-from nets import *
+from nets import F_mapping_multi, LCNet
 from utils.functions import *
 
 import sys 
@@ -21,8 +20,7 @@ sys.path.append('pixel2style2pixel/')
 from pixel2style2pixel.models.stylegan2.model import Generator
 from pixel2style2pixel.models.psp import get_keys
 
-from constants import NUM_TO_ATTR, DEVICE
-
+from constants import DEVICE
 
 class Trainer(nn.Module):
     def __init__(self, config, attr_num, attr, label_file, scaling=1):
@@ -134,8 +132,8 @@ class Trainer(nn.Module):
         return 1 - corr_vec
 
     def get_coeff(self, x):
-        sign_0 = F.relu(x-0.5).sign()
-        sign_1 = F.relu(0.5-x).sign()
+        sign_0 = torch.relu(x-0.5).sign()
+        sign_1 = torch.relu(0.5-x).sign()
 
         coeffs = sign_0*(-x) + sign_1*(1-x)
 

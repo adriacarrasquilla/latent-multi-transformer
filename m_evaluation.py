@@ -4,18 +4,13 @@
 # LICENSE.txt in the root directory of this source tree.
 
 import argparse
-import glob
 import os
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.utils.data as data
 import yaml
 
 from PIL import Image
-from torchvision import transforms, utils, models
-from tensorboard_logger import Logger
+from torchvision import utils
 
 from datasets import *
 from trainer import *

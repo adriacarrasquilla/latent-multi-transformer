@@ -28,8 +28,8 @@ else:
     os.environ["TORCH_CUDA_ARCH_LIST"] = "Turing"
     DEVICE = torch.device('cpu')
 
-from datasets import *
-from trainer import *
+from datasets import LatentDataset
+from trainer import Trainer
 
 
 parser = argparse.ArgumentParser()

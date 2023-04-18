@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from constants import ATTR_TO_NUM
 
-from trainer import Trainer
 from nets import LCNet
 
 random.seed(1)

@@ -3,15 +3,10 @@
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
 
-import os
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.utils.data as data
 
-from PIL import Image
-from torchvision import transforms, utils
 
 class LatentDataset(data.Dataset):
     def __init__(self, latent_dir, label_dir, training_set=True):

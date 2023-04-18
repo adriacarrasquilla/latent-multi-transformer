@@ -3,16 +3,10 @@
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
 
-import os
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.data as data
-
-from PIL import Image
-from torch.autograd import grad
-from torchvision import transforms, utils
 
 from nets import *
 from utils.functions import *
@@ -23,7 +17,7 @@ sys.path.append('pixel2style2pixel/')
 from pixel2style2pixel.models.stylegan2.model import Generator
 from pixel2style2pixel.models.psp import get_keys
 
-from constants import NUM_TO_ATTR, DEVICE
+from constants import DEVICE
 
 
 class Trainer(nn.Module):
