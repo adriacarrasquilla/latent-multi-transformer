@@ -144,7 +144,7 @@ class Trainer(nn.Module):
         sign_1 = F.relu(0.5-x).sign()
 
         coeffs = sign_0*(-x) + sign_1*(1-x)
-        scenario = random.randint(0,2)
+        scenario = 0 # random.randint(0,2)
 
         if scenario == 0:
             attrs_idx = torch.randint(0, coeffs.shape[0], (1,), device=DEVICE)
@@ -251,6 +251,9 @@ class Trainer(nn.Module):
         target_pb = torch.clamp(attr_pb_0 + coeff, 0, 1).round()
         target_pb = target_pb[coeff_idx]
 
+        mask_pb = torch.ones_like(coeff)  # TODO: train with this, I used zeros before
+        mask_pb[coeff_idx] = mask_pb.shape[0]
+
         if 'alpha' in self.config and not self.config['alpha']:
             coeff = 2 * target_pb.type_as(attr_pb_0) - 1 
             
@@ -271,10 +274,10 @@ class Trainer(nn.Module):
         # Pb loss
         T_coeff = target_pb.size(0)/(target_pb.sum(0) + 1e-8)
         F_coeff = target_pb.size(0)/(target_pb.size(0) - target_pb.sum(0) + 1e-8)
-        mask_pb = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
+        mask_pb_tmp = T_coeff.float() * target_pb + F_coeff.float() * (1-target_pb)
 
         pred_pb = predict_lbl_1[torch.arange(predict_lbl_1.shape[0]), self.attr_nums]
-        self.loss_pb = self.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none') # *mask_pb
+        self.loss_pb = self.BCEloss(pred_pb[coeff_idx], target_pb, reduction='none')# *mask_pb
         self.loss_pb = self.loss_pb.mean()
 
         # Latent code recon

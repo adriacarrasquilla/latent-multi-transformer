@@ -4,17 +4,14 @@
 # LICENSE.txt in the root directory of this source tree.
 
 import argparse
-import glob
 import os
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.data as data
 import yaml
 
 from PIL import Image
-from torchvision import transforms, utils, models
+from torchvision import utils
 from tensorboard_logger import Logger
 
 from datasets import *
@@ -27,11 +24,6 @@ torch.backends.cudnn.benchmark = True
 torch.autograd.set_detect_anomaly(True)
 Image.MAX_IMAGE_PIXELS = None
 DEVICE = torch.device('cuda')
-
-'No_Beard'
-'Eyeglasses'
-'Big_Nose'
-'Heavy_Makeup'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='multi_sum_loss2', help='Path to the config file.')

@@ -11,6 +11,8 @@ import torch
 import torch.utils.data as data
 import yaml
 
+from rich.progress import track
+
 from PIL import Image
 from torch.utils.tensorboard.writer import SummaryWriter
 
@@ -31,7 +33,7 @@ from trainer import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='triple_train', help='Path to the config file.')
+parser.add_argument('--config', type=str, default='eval', help='Path to the config file.')
 parser.add_argument('--latent_path', type=str, default='./data/celebahq_dlatents_psp.npy', help='dataset path')
 parser.add_argument('--label_file', type=str, default='./data/celebahq_anno.npy', help='label file path')
 parser.add_argument('--stylegan_model_path', type=str, default='./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt', help='stylegan model path')
@@ -86,7 +88,7 @@ trainer.to(DEVICE)
 for n_epoch in range(epochs):
     t = time.time()
 
-    for n_iter, list_A in enumerate(loader_A):
+    for n_iter, list_A in track(enumerate(loader_A), "Training model..."):
         w_A, lbl_A = list_A
         w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
         trainer.update(w_A, None, n_iter)
@@ -98,8 +100,8 @@ for n_epoch in range(epochs):
 
         total_iter += 1
 
-        # if n_iter == 10000:
-        #     break
+        if n_iter == 5000:
+            break
 
     trainer.save_model_multi(log_dir, name="20_attrs")
     e_time = time.time() - t

@@ -12,7 +12,7 @@ from trainer import Trainer
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
 # experiment = "limit_scaled"
-experiment = "no_pb_mask"
+experiment = "less_attrs"
 n_attrs = 20
 
 # Load basic config
@@ -233,4 +233,4 @@ with gr.Blocks(css=custom_css) as demo:
                  loss_reg, class_pred]).then(update_dataframe, [attributes, class_org, class_pred], [attribute_df, result_col])
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)
