@@ -12,7 +12,7 @@ from trainer import Trainer
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
 # experiment = "limit_scaled"
-experiment = "less_attrs"
+experiment = "main_train"
 n_attrs = 20
 
 # Load basic config

@@ -28,7 +28,7 @@ classifier.load_state_dict(torch.load(classifier_model_path, map_location=DEVICE
 classifier.eval()
 classifier.to(DEVICE)
 
-conf_file = 'eval'
+conf_file = 'new_train'
 config = yaml.safe_load(open('./configs/' + conf_file + '.yaml', 'r'))
 all_attrs = [ATTR_TO_NUM[a] for a in config["attr"].split(',')]
 
@@ -68,4 +68,5 @@ def individual_dataset(n_samples=n_samples, all_attrs=all_attrs):
 
     np.save(out_dir + "all.npy", all_coeffs)
 
-individual_dataset()
+# individual_dataset()
+overall_dataset()
