@@ -10,6 +10,18 @@ import torch.nn.functional as F
 
 from torchvision import transforms
 
+
+def get_target_change(lbl_0, lbl_1, coeff, threshold=0.5):
+    """Compute whether the classification changed or not"""
+
+    positive_changed = lbl_1[0].gt(threshold) * coeff.gt(0)
+    negative_changed = lbl_1[0].lt(threshold) * coeff.lt(0)
+    non_zero = coeff != 0
+
+    ratios = (positive_changed + negative_changed)[non_zero]
+
+    return ratios
+
         
 def clip_img(x):
     """Clip image to range(0,1)"""
