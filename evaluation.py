@@ -18,7 +18,7 @@ from datasets import *
 from trainer import Trainer as MultiTrainer
 from original_trainer import Trainer as SingleTrainer
 from utils.functions import *
-from plot_evaluation import plot_ratios
+from plot_evaluation import plot_ratios, plot_recon_vs_reg
 
 from PIL import Image
 from constants import ATTR_TO_NUM
@@ -31,24 +31,10 @@ Image.MAX_IMAGE_PIXELS = None
 DEVICE = torch.device("cuda")
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--config", type=str, default="new_train", help="Path to the config file."
-)
-parser.add_argument(
-    "--label_file", type=str, default="./data/celebahq_anno.npy", help="label file path"
-)
-parser.add_argument(
-    "--stylegan_model_path",
-    type=str,
-    default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",
-    help="stylegan model path",
-)
-parser.add_argument(
-    "--classifier_model_path",
-    type=str,
-    default="./models/latent_classifier_epoch_20.pth",
-    help="pretrained attribute classifier",
-)
+parser.add_argument("--config", type=str, default="new_train", help="Path to the config file.")
+parser.add_argument("--label_file", type=str, default="./data/celebahq_anno.npy", help="label file path")
+parser.add_argument("--stylegan_model_path", type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
+parser.add_argument("--classifier_model_path", type=str, default="./models/latent_classifier_epoch_20.pth", help="pretrained attribute classifier")
 parser.add_argument("--log_path", type=str, default="./logs/", help="log file path")
 parser.add_argument("--out", type=str, default="test", help="Name of the out folder")
 opts = parser.parse_args()
@@ -58,7 +44,7 @@ model = "20_attrs"
 testdata_dir = "./data/ffhq/"
 n_steps = 11
 scale = 2.0
-n_samples = 50
+n_samples = 500
 
 log_dir_single = os.path.join(opts.log_path, "original_train") + "/"
 
@@ -124,7 +110,9 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None):
         else:
             all_coeffs = np.load(testdata_dir + "labels/overall.npy")
 
-        class_rate = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
+        class_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
+        ident_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
+        attr_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
 
         track_title = f"Evaluating {'multi' if multi else 'single'} model {'for ' + attr if attr else ''}"
 
@@ -154,12 +142,24 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None):
                 lbl_1 = torch.sigmoid(predict_lbl_1)
                 attr_pb_1 = lbl_1[:, attr_num]
 
-                changes = get_target_change(attr_pb_0, attr_pb_1, coeff)
-                ratio = (changes.sum() / changes.size(0)).item()
-                class_rate[k][i] = ratio
+                ident_ratio = trainer.MSEloss(w_1, w_0)
+                # ident_ratio = torch.nn.functional.cosine_similarity(w_1, w_0).mean().item()
 
-        rates = class_rate.mean(axis=0)
-        return rates
+                # mask = torch.tensor(trainer.get_correlation_multi(attr_num, threshold=1, coeffs=coeff)).type_as(predict_lbl_0)
+                # reg = trainer.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
+                attr_ratio = get_attr_change(lbl_0, lbl_1, coeff, attr_num)
+
+                class_ratio = get_target_change(attr_pb_0, attr_pb_1, coeff)
+
+                class_ratios[k][i] = class_ratio
+                ident_ratios[k][i] = ident_ratio
+                attr_ratios[k][i] = attr_ratio
+
+        class_r = class_ratios.mean(axis=0)
+        recons = ident_ratios.mean(axis=0)
+        attr_r = attr_ratios.mean(axis=0)
+
+        return class_r, recons, attr_r
 
 
 def overall_change_ratio_single_vs_multi():
@@ -167,8 +167,8 @@ def overall_change_ratio_single_vs_multi():
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
 
-    single_rates = evaluate_scaling_vs_change_ratio(multi=False)
-    multi_rates = evaluate_scaling_vs_change_ratio(multi=True)
+    single_rates, _, _ = evaluate_scaling_vs_change_ratio(multi=False)
+    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(multi=True)
     labels = ["Single", "Multi"]
     plot_ratios(
         ratios=[single_rates, multi_rates],
@@ -183,19 +183,29 @@ def individual_attr_change_ratio_single_vs_multi():
     Compute the change ratio for each attribute and compare it for multi and single sequential transformers
     """
 
-    for i, attr in enumerate(attrs):
-        single_rates = evaluate_scaling_vs_change_ratio(
+    for i, attr in enumerate(attrs[:]):
+        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(
             multi=False, attr=attr, attr_i=i
         )
-        multi_rates = evaluate_scaling_vs_change_ratio(multi=True, attr=attr, attr_i=i)
+        multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio(multi=True, attr=attr, attr_i=i)
         labels = ["Single", "Multi"]
         plot_ratios(
             ratios=[single_rates, multi_rates],
             labels=labels,
             scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir,
+            output_dir=save_dir + "indiv_ratio/",
             title=f"Target change ratio for {attr}",
             filename=f"ratio_{attr}.png",
+        )
+        plot_recon_vs_reg(
+            ratios=[single_rates, multi_rates],
+            recons=[single_recons, multi_recons],
+            regs=[single_regs, multi_regs],
+            labels=labels,
+            scales=torch.linspace(0, scale, n_steps),
+            output_dir=save_dir + "indiv_recon_vs_reg/",
+            title=f"Target change ratio for {attr}",
+            filename=f"recon_vs_reg_{attr}.png",
         )
 
 
