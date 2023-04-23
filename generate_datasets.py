@@ -68,5 +68,15 @@ def individual_dataset(n_samples=n_samples, all_attrs=all_attrs):
 
     np.save(out_dir + "all.npy", all_coeffs)
 
+
+def attributes_order_dataset(n_samples=n_samples, all_attrs=all_attrs):
+    all_orders = np.zeros((n_samples,len(all_attrs)), dtype=np.int8)
+    for k in range(n_samples):
+        all_orders[k] = np.array(random.sample(range(len(all_attrs)), len(all_attrs)))
+
+    np.save(out_dir + "attr_order.npy", all_orders)
+
+
 # individual_dataset()
-overall_dataset()
+# overall_dataset()
+attributes_order_dataset()
