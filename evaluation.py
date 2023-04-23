@@ -18,7 +18,7 @@ from datasets import *
 from trainer import Trainer as MultiTrainer
 from original_trainer import Trainer as SingleTrainer
 from utils.functions import *
-from plot_evaluation import plot_ratios, plot_recon_vs_reg
+from plot_evaluation import plot_nattr_evolution, plot_ratios, plot_recon_vs_reg
 
 from PIL import Image
 from constants import ATTR_TO_NUM
@@ -100,21 +100,23 @@ def apply_transformation(trainer, w_0, coeff, multi=True):
     return w_1
 
 
-def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None):
+def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=None):
     with torch.no_grad():
         # Initialize trainer
         trainer = get_trainer(multi)
 
-        if attr and attr_i is not None:
+        if (attr and attr_i is not None) or orders is not None:
             all_coeffs = np.load(testdata_dir + "labels/all.npy")
+            extra = f'for {attr}' if orders is None else f'for {orders.shape[1]} attrs'
         else:
             all_coeffs = np.load(testdata_dir + "labels/overall.npy")
+            extra = ""
 
         class_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         ident_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         attr_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
 
-        track_title = f"Evaluating {'multi' if multi else 'single'} model {'for ' + attr if attr else ''}"
+        track_title = f"Evaluating {'multi' if multi else 'single'} model " + extra
 
         for k in track(range(n_samples), track_title):
             w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
@@ -128,6 +130,9 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None):
             if attr and attr_i is not None:
                 coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
                 coeff[attr_i] = all_coeffs[k][attr_i]
+            elif orders is not None:
+                coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
+                coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
             else:
                 coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
 
@@ -184,11 +189,11 @@ def individual_attr_change_ratio_single_vs_multi():
     """
 
     for i, attr in enumerate(attrs[:]):
-        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(
-            multi=False, attr=attr, attr_i=i
-        )
+
+        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(multi=False, attr=attr, attr_i=i)
         multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio(multi=True, attr=attr, attr_i=i)
         labels = ["Single", "Multi"]
+
         plot_ratios(
             ratios=[single_rates, multi_rates],
             labels=labels,
@@ -208,10 +213,63 @@ def individual_attr_change_ratio_single_vs_multi():
             filename=f"recon_vs_reg_{attr}.png",
         )
 
+def different_nattrs_ratio_single_vs_multi():
+    orders = np.load(testdata_dir + "labels/attr_order.npy")
+    all_rates = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
+    all_recons = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
+    all_regs = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
+    for i in range(len(attrs[:])):
+        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(multi=False, orders=orders[:, :i+1])
+        multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio(multi=True, orders=orders[:, :i+1])
+        labels = ["Single", "Multi"]
+
+        plot_recon_vs_reg(
+            ratios=[single_rates, multi_rates],
+            recons=[single_recons, multi_recons],
+            regs=[single_regs, multi_regs],
+            labels=labels,
+            scales=torch.linspace(0, scale, n_steps),
+            output_dir=save_dir + "n_attrs/",
+            title=f"Target change ratio for {i+1} attrs",
+            filename=f"{i+1}_attrs.png",
+        )
+
+        # Store results to avoid repeating computation
+        all_rates[i][0] = single_rates
+        all_rates[i][1] = multi_rates
+
+        all_recons[i][0] = single_recons
+        all_recons[i][1] = multi_recons
+
+        all_regs[i][0] = single_regs
+        all_regs[i][1] = multi_regs
+
+        np.save(save_dir + "n_attrs/all_rates.npy", all_rates)
+        np.save(save_dir + "n_attrs/all_recons.npy", all_recons)
+        np.save(save_dir + "n_attrs/all_regs.npy", all_regs)
+
+
+def nattrs_ratio_progression_single_vs_multi():
+    all_rates = np.load(save_dir + "n_attrs/all_rates.npy")
+    all_recons = np.load(save_dir + "n_attrs/all_recons.npy")
+    all_regs = np.load(save_dir + "n_attrs/all_regs.npy")
+
+    labels = ["Single", "Multi"]
+    coeffs = torch.linspace(0, scale, n_steps)
+
+    for n in [2,5,8,10]:
+        plot_nattr_evolution(
+            ratios=[all_rates[:,0, n], all_rates[:, 1, n]],
+            recons=[all_recons[:, 0, n], all_recons[:, 1, n]],
+            regs=[all_regs[:, 0, n], all_regs[:, 1, n]],
+            labels=labels,
+            output_dir=save_dir + "n_attrs_evolution/",
+            title=f"Change ratio over n attrs, scaling = {coeffs[n]:.2}",
+            filename=f"n_attrs_evolution_{coeffs[n]:.2}.png",
+        )
 
 if __name__ == "__main__":
-    individual_attr_change_ratio_single_vs_multi()
-
-    # TODO: Next steps should be adapting the ratio main function to also store attribute and identity losses
-    # From this, make new plotting functions for the curves comparisons. This way I can reuse the overall and
-    # the individual attr functions
+    # overall_change_ratio_single_vs_multi()
+    # individual_attr_change_ratio_single_vs_multi()
+    # different_nattrs_ratio_single_vs_multi()
+    nattrs_ratio_progression_single_vs_multi()
