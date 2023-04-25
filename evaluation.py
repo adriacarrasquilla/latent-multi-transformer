@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import gc
 import numpy as np
 import torch
 import yaml
@@ -12,13 +13,15 @@ import yaml
 from time import time
 from rich.progress import track
 
+from torchvision import utils
+
 import matplotlib.pyplot as plt
 
 from datasets import *
 from trainer import Trainer as MultiTrainer
 from original_trainer import Trainer as SingleTrainer
 from utils.functions import *
-from plot_evaluation import plot_nattr_evolution, plot_ratios, plot_recon_vs_reg
+from plot_evaluation import plot_images, plot_nattr_evolution, plot_ratios, plot_recon_vs_reg
 
 from PIL import Image
 from constants import ATTR_TO_NUM
@@ -44,7 +47,8 @@ model = "20_attrs"
 testdata_dir = "./data/ffhq/"
 n_steps = 11
 scale = 2.0
-n_samples = 500
+
+n_samples = 10
 
 log_dir_single = os.path.join(opts.log_path, "original_train") + "/"
 
@@ -99,8 +103,22 @@ def apply_transformation(trainer, w_0, coeff, multi=True):
 
     return w_1
 
+def get_ratios_from_sample(w_0, w_1, coeff, trainer):
+    predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
+    lbl_0 = torch.sigmoid(predict_lbl_0)
+    attr_pb_0 = lbl_0[:, attr_num]
 
-def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=None):
+    predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
+    lbl_1 = torch.sigmoid(predict_lbl_1)
+    attr_pb_1 = lbl_1[:, attr_num]
+
+    ratio = get_target_change(attr_pb_0, attr_pb_1, coeff, mean=False)
+
+    return ratio
+
+
+def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
+                                     return_mean=True, n_steps=n_steps, scale=scale):
     with torch.no_grad():
         # Initialize trainer
         trainer = get_trainer(multi)
@@ -148,21 +166,21 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
                 attr_pb_1 = lbl_1[:, attr_num]
 
                 ident_ratio = trainer.MSEloss(w_1, w_0)
-                # ident_ratio = torch.nn.functional.cosine_similarity(w_1, w_0).mean().item()
-
-                # mask = torch.tensor(trainer.get_correlation_multi(attr_num, threshold=1, coeffs=coeff)).type_as(predict_lbl_0)
-                # reg = trainer.MSEloss(predict_lbl_1*mask, predict_lbl_0*mask)
                 attr_ratio = get_attr_change(lbl_0, lbl_1, coeff, attr_num)
-
                 class_ratio = get_target_change(attr_pb_0, attr_pb_1, coeff)
 
                 class_ratios[k][i] = class_ratio
                 ident_ratios[k][i] = ident_ratio
                 attr_ratios[k][i] = attr_ratio
 
-        class_r = class_ratios.mean(axis=0)
-        recons = ident_ratios.mean(axis=0)
-        attr_r = attr_ratios.mean(axis=0)
+        if return_mean:
+            class_r = class_ratios.mean(axis=0)
+            recons = ident_ratios.mean(axis=0)
+            attr_r = attr_ratios.mean(axis=0)
+        else:
+            class_r = class_ratios
+            recons = ident_ratios
+            attr_r = attr_ratios
 
         return class_r, recons, attr_r
 
@@ -268,8 +286,10 @@ def nattrs_ratio_progression_single_vs_multi():
             filename=f"n_attrs_evolution_{coeffs[n]:.2}.png",
         )
 
+
 if __name__ == "__main__":
+    pass
     # overall_change_ratio_single_vs_multi()
     # individual_attr_change_ratio_single_vs_multi()
     # different_nattrs_ratio_single_vs_multi()
-    nattrs_ratio_progression_single_vs_multi()
+    # nattrs_ratio_progression_single_vs_multi()

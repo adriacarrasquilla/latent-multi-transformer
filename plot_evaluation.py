@@ -2,9 +2,16 @@ import os
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as np
+import torch
+import textwrap
 
-# matplotlib.use("tkagg")
+from PIL import Image
+from constants import NUM_TO_ATTR
+from utils.functions import clip_img
+
+matplotlib.use("tkagg")
 
 PAD = 0.05
 
@@ -97,3 +104,60 @@ def plot_nattr_evolution(recons, regs, ratios, labels, output_dir="outputs/evalu
     # plt.ylim(0.8, 1 + PAD*0.1)
 
     plt.savefig(output_dir + filename)
+
+
+def plot_images(images, coeff, attrs, save_dir, titles):
+    description = ""
+    for c in coeff.nonzero():
+        description += attrs[c.item()] + ("+ , " if coeff[c.item()] > 0 else "- , ")
+
+    description = textwrap.wrap(description[:-3], width=60)
+    description = "\n".join(description)
+
+    fig, axs = plt.subplots(nrows=1, ncols=len(images), figsize=(10, 5))
+    for i, (image, title) in enumerate(zip(images, titles)):
+        img_tensor = clip_img(image)[0]
+        ndarr = img_tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
+        im = Image.fromarray(ndarr)
+        axs[i].imshow(im)
+        axs[i].set_title(title)
+        axs[i].axis('off')
+
+    plt.subplots_adjust(wspace=0.05)
+    fig.text(0.5, 0.1, description, ha='center', va='center', fontsize=15)
+    plt.savefig(save_dir)
+    fig.clf()
+    plt.clf()
+
+
+def plot_images_table(ratios, coeff, attrs, save_dir):
+    description = ""
+    for c in coeff.nonzero():
+        description += attrs[c.item()] + ("+ , " if coeff[c.item()] > 0 else "- , ")
+
+    description = textwrap.wrap(description[:-3], width=60)
+    description = "\n".join(description)
+
+    colors = np.array([["#c9cba3" if val else "#f28482" for val in row] for row in ratios])
+
+    columns = [attrs[c.item()] for c in coeff.nonzero()]
+    rows = ["Multi", "Single"]
+
+    fig = plt.figure()
+    fig = plt.figure(figsize=(4 + len(columns)*2, 2 + 3 / 2.5))
+    table = plt.table(cellText=ratios, colLabels=columns, rowLabels=rows, loc='center',
+                      cellLoc='center', cellColours=colors)
+    table.auto_set_font_size(False)
+    table.scale(1, 2)
+    table.set_fontsize(16)
+
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(save_dir)
+    plt.savefig(save_dir, dpi=200, bbox_inches='tight')
+    fig.clf()
+    plt.clf()
+
+
+
+
