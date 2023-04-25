@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
+import gc
 random.seed(1)
 
 from torchvision import utils
@@ -77,6 +78,13 @@ class Trainer(nn.Module):
         self.StyleGAN.load_state_dict(get_keys(state_dict, 'decoder'), strict=True)
         self.Latent_Classifier.load_state_dict(torch.load(classifier_model_path, map_location=DEVICE))
         self.Latent_Classifier.eval()
+
+    def terminate(self):
+        del self.StyleGAN
+        del self.Latent_Classifier
+        del self.T_net
+        torch.cuda.empty_cache()
+        gc.collect()
 
     def L1loss(self, input, target):
         return nn.L1Loss()(input,target)
