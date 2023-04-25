@@ -48,7 +48,7 @@ testdata_dir = "./data/ffhq/"
 n_steps = 11
 scale = 2.0
 
-n_samples = 10
+n_samples = 500
 
 log_dir_single = os.path.join(opts.log_path, "original_train") + "/"
 
@@ -288,8 +288,7 @@ def nattrs_ratio_progression_single_vs_multi():
 
 
 if __name__ == "__main__":
-    pass
     # overall_change_ratio_single_vs_multi()
-    # individual_attr_change_ratio_single_vs_multi()
-    # different_nattrs_ratio_single_vs_multi()
-    # nattrs_ratio_progression_single_vs_multi()
+    individual_attr_change_ratio_single_vs_multi()
+    different_nattrs_ratio_single_vs_multi()
+    nattrs_ratio_progression_single_vs_multi()

@@ -10,8 +10,10 @@ import torch.nn.functional as F
 
 from torchvision import transforms
 
+from constants import DEVICE
 
-def get_target_change(lbl_0, lbl_1, coeff, threshold=0.5):
+
+def get_target_change(lbl_0, lbl_1, coeff, threshold=0.5, mean=True):
     """Compute whether the classification changed or not"""
 
     positive_changed = lbl_1[0].gt(threshold) * coeff.gt(0)
@@ -20,14 +22,19 @@ def get_target_change(lbl_0, lbl_1, coeff, threshold=0.5):
 
     ratios = (positive_changed + negative_changed)[non_zero]
 
-    return (ratios.sum() / ratios.size(0)).item()
+    if mean:
+        return (ratios.sum() / ratios.size(0)).item()
+    else:
+        return ratios
 
 
 def get_attr_change(lbl_0, lbl_1, coeff, attr_num, threshold=0.25):
     """Compute whether the classification changed or not"""
 
     changes = torch.abs(lbl_0 - lbl_1)[0]
-    targets = attr_num[coeff.nonzero()[0]]
+    
+    targets = torch.tensor(attr_num).to(DEVICE)[coeff.nonzero().view(coeff.nonzero().size(1), -1)[0]]
+    # targets = attr_num[coeff.nonzero()[0]]
     mask = torch.ones_like(changes, dtype=torch.bool)
     mask[targets] = False
     ratios = changes.lt(threshold)[mask]
