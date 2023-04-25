@@ -77,6 +77,20 @@ def attributes_order_dataset(n_samples=n_samples, all_attrs=all_attrs):
     np.save(out_dir + "attr_order.npy", all_orders)
 
 
+def subjective_study(n_imgs=20, all_attrs=all_attrs):
+    for k in random.sample(range(n_samples), n_imgs):
+        print(k)
+        local_attrs = random.sample(range(len(all_attrs)), random.randint(1,len(all_attrs)))
+        global_attrs = [all_attrs[a] for a in local_attrs]
+        # TODO: finish this so that:
+        # * We choose a random number of attributes to modify (maybe use weights so that we get more samples with less attrs)
+        # * We transform the randomly selected sample with the Single and Multi transformers
+        # * Save the images into a directory
+        # * Generate a text file with the attributes modified and wether it was a positive or negative transformation
+
+
+
 # individual_dataset()
 # overall_dataset()
-attributes_order_dataset()
+# attributes_order_dataset()
+subjective_study()
