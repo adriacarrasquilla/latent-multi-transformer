@@ -114,7 +114,7 @@ def plot_images(images, coeff, attrs, save_dir, titles):
     description = textwrap.wrap(description[:-3], width=60)
     description = "\n".join(description)
 
-    fig, axs = plt.subplots(nrows=1, ncols=len(images), figsize=(10, 5))
+    fig, axs = plt.subplots(nrows=1, ncols=len(images), figsize=(10, 6))
     for i, (image, title) in enumerate(zip(images, titles)):
         img_tensor = clip_img(image)[0]
         ndarr = img_tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
@@ -124,8 +124,9 @@ def plot_images(images, coeff, attrs, save_dir, titles):
         axs[i].axis('off')
 
     plt.subplots_adjust(wspace=0.05)
-    fig.text(0.5, 0.1, description, ha='center', va='center', fontsize=15)
+    fig.text(0.5, 0.15, description, ha='center', va='center', fontsize=15)
     plt.savefig(save_dir)
+    plt.close()
     fig.clf()
     plt.clf()
 
@@ -155,6 +156,7 @@ def plot_images_table(ratios, coeff, attrs, save_dir):
     plt.tight_layout()
     plt.savefig(save_dir)
     plt.savefig(save_dir, dpi=200, bbox_inches='tight')
+    plt.close()
     fig.clf()
     plt.clf()
 

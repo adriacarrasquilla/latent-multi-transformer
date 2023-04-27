@@ -63,18 +63,9 @@ def get_individual_scores(coeff_i):
 
     return [s_rates, m_rates], [s_recons, m_recons], [s_regs, m_regs]
 
-def get_diff_examples(scores, diff_type="ratio"):
-    # Output directory
-    examples_dir = save_dir + "examples/"
-    os.makedirs(examples_dir, exist_ok=True)
 
-    # Evaluate models
-    all_coeffs = np.load(testdata_dir + "labels/overall.npy")
-
-    # Use only one scaling factor and separate multi from single results
-    scales = torch.linspace(0, scale, n_steps)
-    coeff_i = 1
-
+def get_diff_idx(all_coeffs, scores, diff_type="ratio"):
+    
     s_rates, m_rates = scores[0][0], scores[0][1]
     s_recons, m_recons = scores[1][0], scores[1][1]
     s_regs, m_regs = scores[2][0], scores[2][1]
@@ -92,8 +83,36 @@ def get_diff_examples(scores, diff_type="ratio"):
     best_multi = indices[np.argpartition(diff[indices], n_best)[:n_best]]
     best_single = indices[np.argpartition(-diff[indices], n_best)[:n_best]]
 
+    return np.concatenate((best_multi, best_single))
+
+
+def get_diff_examples(scores, diff_type="ratio", idx_override=None, coeff_override=None):
+    # Output directory
+    examples_dir = save_dir + "examples/"
+    os.makedirs(examples_dir, exist_ok=True)
+
+    # Evaluate models
+    all_coeffs = np.load(testdata_dir + "labels/overall.npy")
+
+    # Use only one scaling factor and separate multi from single results
+    scales = torch.linspace(0, scale, n_steps)
+    coeff_i = 1
+
+    s_rates, m_rates = scores[0][0], scores[0][1]
+    s_recons, m_recons = scores[1][0], scores[1][1]
+    s_regs, m_regs = scores[2][0], scores[2][1]
+
+    if idx_override:
+        idxs = idx_override
+        if coeff_override:
+            for i, idx in enumerate(idxs):
+                all_coeffs[idx] = coeff_override[i]
+
+    else:
+        idxs = get_diff_idx(all_coeffs=all_coeffs, scores=scores, diff_type=diff_type)
+
     # Generate images and prepare plot comparison for each result
-    for k in track(np.concatenate((best_multi, best_single)), f"Generating images for {diff_type}"):
+    for k in track(idxs, f"Generating images for {diff_type}"):
         w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
         w_0 = torch.tensor(w_0).to(DEVICE)
 
