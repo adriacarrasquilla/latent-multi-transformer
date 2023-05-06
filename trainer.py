@@ -45,6 +45,7 @@ class Trainer(nn.Module):
         mapping_layers = self.config['mapping_layers']
         mapping_fmaps = self.config['mapping_fmaps']
         mapping_nonlinearity = self.config['mapping_nonlinearity']
+        bottleneck_size = self.config.get('bottleneck_size', 1)
         # Networks
         # Latent Transformer
         self.T_net = F_mapping_multi(
@@ -52,6 +53,7 @@ class Trainer(nn.Module):
             mapping_layers=mapping_layers,
             mapping_fmaps=mapping_fmaps,
             mapping_nonlinearity = mapping_nonlinearity,
+            bottleneck_size=bottleneck_size,
             n_attributes=len(self.attrs)
         )
         # Latent Classifier

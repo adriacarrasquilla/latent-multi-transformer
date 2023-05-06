@@ -133,6 +133,7 @@ class F_mapping_multi(nn.Module):
         dlatent_size            = 512,              # Transformed latent (W) dimensionality.
         mapping_layers          = 18,               # Number of mapping layers.
         mapping_fmaps           = 512,              # Number of activations in the mapping layers.
+        bottleneck_size         = 1,                # Size of the bottleneck. 18 is as there is no bottleneck
         mapping_lrmul           = 1,                # Learning rate multiplier for the mapping layers.
         mapping_nonlinearity    = 'lrelu',          # Activation function: 'relu', 'lrelu', etc.
         dtype                   = torch.float32,    # Data type to use for activations and outputs.
@@ -151,8 +152,8 @@ class F_mapping_multi(nn.Module):
             self.dense.append(Dense_layer(mapping_fmaps, mapping_fmaps, lrmul=mapping_lrmul))
 
         # Adding fully connected layer that will combine the coefficients and the transformer output
-        self.fc0 = Dense_layer(mapping_fmaps * mapping_layers, mapping_fmaps)
-        self.fc = Dense_layer(n_attributes * mapping_fmaps, mapping_fmaps*mapping_layers)
+        self.fc0 = Dense_layer(mapping_fmaps * mapping_layers, mapping_fmaps * bottleneck_size)
+        self.fc = Dense_layer(n_attributes * mapping_fmaps * bottleneck_size, mapping_fmaps*mapping_layers)
         
     def forward(self, latents_in, coeffs, scaling=1):
         # Inputs.
@@ -170,10 +171,6 @@ class F_mapping_multi(nn.Module):
 
         coeffs = coeffs.transpose(0,1)
         x = x * coeffs * scaling
-
-        # Scaling factor for inference only
-        # if not training:
-        #     x = x * (1 + self.n_attributes) / 2
 
         x = x.reshape(1, -1)
 

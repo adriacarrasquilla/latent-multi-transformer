@@ -94,13 +94,14 @@ for n_epoch in range(epochs):
 
         if (total_iter+1) % config['log_iter'] == 0:
             trainer.log_loss(logger, total_iter)
-        if (total_iter+1) % config['image_log_iter'] == 0:
+        # if (total_iter+1) % config['image_log_iter'] == 0:
+        if (total_iter+1) % 1000 == 0:
             trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
 
         total_iter += 1
 
-        if n_iter == 5000:
-            break
+        # if n_iter == 1:
+        #     break
 
     trainer.save_model_multi(log_dir, name="20_attrs")
     e_time = time.time() - t
