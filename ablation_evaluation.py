@@ -39,7 +39,7 @@ parser.add_argument("--label_file", type=str, default="./data/celebahq_anno.npy"
 parser.add_argument("--stylegan_model_path", type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
 parser.add_argument("--classifier_model_path", type=str, default="./models/latent_classifier_epoch_20.pth", help="pretrained attribute classifier")
 parser.add_argument("--log_path", type=str, default="./logs/", help="log file path")
-parser.add_argument("--out", type=str, default="test", help="Name of the out folder")
+parser.add_argument("--out", type=str, default="ablation", help="Name of the out folder")
 opts = parser.parse_args()
 
 # globals setup
@@ -63,6 +63,7 @@ attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
 from evaluation import get_trainer, apply_transformation, get_ratios_from_sample
 
+coeff_map= [0,4,2]
 
 def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders=None, n_samples=n_samples,
                                      n_steps=n_steps, scale=scale):
@@ -101,9 +102,10 @@ def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders
                 coeff[attr_i] = all_coeffs[k][attr_i]
             elif orders is not None:
                 coeff = torch.zeros(len(attrs)).to(DEVICE)
-                coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
+                less_orders = [o for o in orders[k] if o in coeff_map]
+                coeff = torch.tensor(all_coeffs[k][less_orders], dtype=torch.float).to(DEVICE)
             else:
-                coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
+                coeff = torch.tensor(all_coeffs[k][coeff_map]).to(DEVICE)
 
             scales = torch.linspace(0, scale, n_steps).to(DEVICE)
             range_coeffs = coeff * scales.reshape(-1, 1)
@@ -123,11 +125,12 @@ def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders
                 class_ratios[k][i] = class_ratio
                 ident_ratios[k][i] = ident_ratio
                 attr_ratios[k][i] = attr_ratio
+        print(np.isnan(class_ratios).any())
 
         class_r = class_ratios.mean(axis=0)
         recons = ident_ratios.mean(axis=0)
         attr_r = attr_ratios.mean(axis=0)
-
+        print(class_r, recons, attr_r)
         return class_r, recons, attr_r
 
 
@@ -136,7 +139,9 @@ def overall_change_ratio_single_vs_multi():
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
 
-    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=opts.config)
+    # orders = None
+    orders = np.load(testdata_dir + "labels/attr_order.npy")
+    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=opts.config, orders=orders)
     labels = ["Single", "Multi"]
     plot_ratios(
         ratios=[multi_rates, multi_rates],
