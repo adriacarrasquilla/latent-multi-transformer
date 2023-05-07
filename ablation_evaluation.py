@@ -34,7 +34,7 @@ Image.MAX_IMAGE_PIXELS = None
 DEVICE = torch.device("cuda")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default="new_train", help="Path to the config file.")
+parser.add_argument("--config", type=str, default="bottleneck_1", help="Path to the config file.")
 parser.add_argument("--label_file", type=str, default="./data/celebahq_anno.npy", help="label file path")
 parser.add_argument("--stylegan_model_path", type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
 parser.add_argument("--classifier_model_path", type=str, default="./models/latent_classifier_epoch_20.pth", help="pretrained attribute classifier")
@@ -61,67 +61,14 @@ config = yaml.safe_load(open("./configs/" + opts.config + ".yaml", "r"))
 attrs = config["attr"].split(",")
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
-
-def get_trainer(multi=True, config=config, attr_num=attr_num, attrs=attrs):
-    if multi:
-        trainer = MultiTrainer(config, attr_num, attrs, opts.label_file)
-        trainer.load_model_multi(log_dir, model)
-    else:
-        trainer = SingleTrainer(config, None, None, opts.label_file)
-
-    trainer.initialize(opts.stylegan_model_path, opts.classifier_model_path)
-    trainer.to(DEVICE)
-    return trainer
+from evaluation import get_trainer, apply_transformation, get_ratios_from_sample
 
 
-def apply_transformation(trainer, w_0, coeff, multi=True):
-    # Use w_0 in case something goes wrong
-    w_1 = w_0
-
-    if multi:
-        # Multi trainer prediction
-        w_1 = trainer.T_net(
-            w_0.view(w_0.size(0), -1), coeff.unsqueeze(0).to(DEVICE), scaling=1.5
-        )  # TODO: remove scaling
-        w_1 = w_1.view(w_0.size())
-
-    else:
-        # Single trainer secuential prediction
-        w_prev = w_0
-        for i, c in enumerate(coeff):
-            if c == 0:
-                # skip attributes without coefficient
-                continue
-
-            trainer.attr_num = ATTR_TO_NUM[attrs[i]]
-            trainer.load_model(log_dir_single)
-            trainer.to(DEVICE)
-
-            w_1 = trainer.T_net(w_prev.view(w_0.size(0), -1), c.unsqueeze(0))
-            w_1 = w_1.view(w_0.size())
-            w_prev = w_1
-
-    return w_1
-
-def get_ratios_from_sample(w_0, w_1, coeff, trainer):
-    predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
-    lbl_0 = torch.sigmoid(predict_lbl_0)
-    attr_pb_0 = lbl_0[:, attr_num]
-
-    predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
-    lbl_1 = torch.sigmoid(predict_lbl_1)
-    attr_pb_1 = lbl_1[:, attr_num]
-
-    ratio = get_target_change(attr_pb_0, attr_pb_1, coeff, mean=False)
-
-    return ratio
-
-
-def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
-                                     return_mean=True, n_steps=n_steps, scale=scale):
+def evaluate_scaling_vs_change_ratio(config, attr=None, attr_i=None, orders=None, n_samples=n_samples,
+                                     n_steps=n_steps, scale=scale):
     with torch.no_grad():
         # Initialize trainer
-        trainer = get_trainer(multi)
+        trainer = get_trainer(True, config=config, attr_num=attr_num, attrs=attrs)
 
         if (attr and attr_i is not None) or orders is not None:
             all_coeffs = np.load(testdata_dir + "labels/all.npy")
@@ -134,7 +81,7 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
         ident_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         attr_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
 
-        track_title = f"Evaluating {'multi' if multi else 'single'} model " + extra
+        track_title = f"Evaluating multi model " + extra
 
         for k in track(range(n_samples), track_title):
             w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
@@ -146,10 +93,10 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
 
             # Wether we are using all the coefficients or one attribute at a time
             if attr and attr_i is not None:
-                coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
+                coeff = torch.zeros(len(attrs)).to(DEVICE)
                 coeff[attr_i] = all_coeffs[k][attr_i]
             elif orders is not None:
-                coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
+                coeff = torch.zeros(len(attrs)).to(DEVICE)
                 coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
             else:
                 coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
@@ -158,7 +105,7 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
             range_coeffs = coeff * scales.reshape(-1, 1)
             for i, alpha in enumerate(range_coeffs):
                 w_1 = apply_transformation(
-                    trainer=trainer, w_0=w_0, coeff=alpha, multi=multi
+                    trainer=trainer, w_0=w_0, coeff=alpha, multi=True
                 )
 
                 predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
@@ -173,14 +120,9 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
                 ident_ratios[k][i] = ident_ratio
                 attr_ratios[k][i] = attr_ratio
 
-        if return_mean:
-            class_r = class_ratios.mean(axis=0)
-            recons = ident_ratios.mean(axis=0)
-            attr_r = attr_ratios.mean(axis=0)
-        else:
-            class_r = class_ratios
-            recons = ident_ratios
-            attr_r = attr_ratios
+        class_r = class_ratios.mean(axis=0)
+        recons = ident_ratios.mean(axis=0)
+        attr_r = attr_ratios.mean(axis=0)
 
         return class_r, recons, attr_r
 
@@ -190,11 +132,10 @@ def overall_change_ratio_single_vs_multi():
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
 
-    single_rates, _, _ = evaluate_scaling_vs_change_ratio(multi=False)
-    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(multi=True)
+    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config=config)
     labels = ["Single", "Multi"]
     plot_ratios(
-        ratios=[single_rates, multi_rates],
+        ratios=[multi_rates, multi_rates],
         labels=labels,
         scales=torch.linspace(0, scale, n_steps),
         output_dir=save_dir,
@@ -288,7 +229,7 @@ def nattrs_ratio_progression_single_vs_multi():
 
 
 if __name__ == "__main__":
-    # overall_change_ratio_single_vs_multi()
-    individual_attr_change_ratio_single_vs_multi()
-    different_nattrs_ratio_single_vs_multi()
-    nattrs_ratio_progression_single_vs_multi()
+    overall_change_ratio_single_vs_multi()
+    # individual_attr_change_ratio_single_vs_multi()
+    # different_nattrs_ratio_single_vs_multi()
+    # nattrs_ratio_progression_single_vs_multi()
