@@ -62,7 +62,7 @@ attrs = config["attr"].split(",")
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
 
-def get_trainer(multi=True, config=config, attr_num=attr_num, attrs=attrs):
+def get_trainer(multi=True, config=config, log_dir=log_dir, attr_num=attr_num, attrs=attrs):
     if multi:
         trainer = MultiTrainer(config, attr_num, attrs, opts.label_file)
         trainer.load_model_multi(log_dir, model)

@@ -64,11 +64,15 @@ attr_num = [ATTR_TO_NUM[a] for a in attrs]
 from evaluation import get_trainer, apply_transformation, get_ratios_from_sample
 
 
-def evaluate_scaling_vs_change_ratio(config, attr=None, attr_i=None, orders=None, n_samples=n_samples,
+def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders=None, n_samples=n_samples,
                                      n_steps=n_steps, scale=scale):
+
+    config = yaml.safe_load(open("./configs/" + config_name + ".yaml", "r"))
+    log_dir = os.path.join(opts.log_path, config_name) + "/"
+
     with torch.no_grad():
         # Initialize trainer
-        trainer = get_trainer(True, config=config, attr_num=attr_num, attrs=attrs)
+        trainer = get_trainer(True, config=config, log_dir=log_dir, attr_num=attr_num, attrs=attrs)
 
         if (attr and attr_i is not None) or orders is not None:
             all_coeffs = np.load(testdata_dir + "labels/all.npy")
@@ -132,7 +136,7 @@ def overall_change_ratio_single_vs_multi():
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
 
-    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config=config)
+    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=opts.config)
     labels = ["Single", "Multi"]
     plot_ratios(
         ratios=[multi_rates, multi_rates],
