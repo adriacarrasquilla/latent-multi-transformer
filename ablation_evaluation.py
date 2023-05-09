@@ -5,23 +5,18 @@
 
 import argparse
 import os
-import gc
 import numpy as np
 import torch
 import yaml
 
-from time import time
 from rich.progress import track
 
-from torchvision import utils
-
-import matplotlib.pyplot as plt
-
 from datasets import *
-from trainer import Trainer as MultiTrainer
-from original_trainer import Trainer as SingleTrainer
 from utils.functions import *
-from plot_evaluation import plot_images, plot_nattr_evolution, plot_ratios, plot_recon_vs_reg
+from plot_evaluation import plot_ratios
+
+from evaluation import get_trainer, apply_transformation
+
 
 from PIL import Image
 from constants import ATTR_TO_NUM
@@ -36,8 +31,8 @@ DEVICE = torch.device("cuda")
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default="bottleneck_1", help="Path to the config file.")
 parser.add_argument("--label_file", type=str, default="./data/celebahq_anno.npy", help="label file path")
-parser.add_argument("--stylegan_model_path", type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
-parser.add_argument("--classifier_model_path", type=str, default="./models/latent_classifier_epoch_20.pth", help="pretrained attribute classifier")
+parser.add_argument("--stylegan_model_path",type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
+parser.add_argument("--classifier_model_path",type=str,default="./models/latent_classifier_epoch_20.pth",help="pretrained attribute classifier")
 parser.add_argument("--log_path", type=str, default="./logs/", help="log file path")
 parser.add_argument("--out", type=str, default="ablation", help="Name of the out folder")
 opts = parser.parse_args()
@@ -61,23 +56,31 @@ config = yaml.safe_load(open("./configs/" + opts.config + ".yaml", "r"))
 attrs = config["attr"].split(",")
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
-from evaluation import get_trainer, apply_transformation, get_ratios_from_sample
+coeff_map = [0, 4, 2]
 
-coeff_map= [0,4,2]
 
-def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders=None, n_samples=n_samples,
-                                     n_steps=n_steps, scale=scale):
+def evaluate_scaling_vs_change_ratio_bottleneck(
+    config_name,
+    attr=None,
+    attr_i=None,
+    orders=None,
+    n_samples=n_samples,
+    n_steps=n_steps,
+    scale=scale,
+):
 
     config = yaml.safe_load(open("./configs/" + config_name + ".yaml", "r"))
     log_dir = os.path.join(opts.log_path, config_name) + "/"
 
     with torch.no_grad():
         # Initialize trainer
-        trainer = get_trainer(True, config=config, log_dir=log_dir, attr_num=attr_num, attrs=attrs)
+        trainer = get_trainer(
+            True, config=config, log_dir=log_dir, attr_num=attr_num, attrs=attrs
+        )
 
         if (attr and attr_i is not None) or orders is not None:
             all_coeffs = np.load(testdata_dir + "labels/all.npy")
-            extra = f'for {attr}' if orders is None else f'for {orders.shape[1]} attrs'
+            extra = f"for {attr}" if orders is None else f"for {orders.shape[1]} attrs"
         else:
             all_coeffs = np.load(testdata_dir + "labels/overall.npy")
             extra = ""
@@ -103,7 +106,9 @@ def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders
             elif orders is not None:
                 coeff = torch.zeros(len(attrs)).to(DEVICE)
                 less_orders = [o for o in orders[k] if o in coeff_map]
-                coeff = torch.tensor(all_coeffs[k][less_orders], dtype=torch.float).to(DEVICE)
+                coeff = torch.tensor(all_coeffs[k][less_orders], dtype=torch.float).to(
+                    DEVICE
+                )
             else:
                 coeff = torch.tensor(all_coeffs[k][coeff_map]).to(DEVICE)
 
@@ -125,16 +130,15 @@ def evaluate_scaling_vs_change_ratio(config_name, attr=None, attr_i=None, orders
                 class_ratios[k][i] = class_ratio
                 ident_ratios[k][i] = ident_ratio
                 attr_ratios[k][i] = attr_ratio
-        print(np.isnan(class_ratios).any())
 
         class_r = class_ratios.mean(axis=0)
         recons = ident_ratios.mean(axis=0)
         attr_r = attr_ratios.mean(axis=0)
-        print(class_r, recons, attr_r)
+
         return class_r, recons, attr_r
 
 
-def overall_change_ratio_single_vs_multi():
+def overall_change_ratio_bottleneck():
     """
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
@@ -143,9 +147,13 @@ def overall_change_ratio_single_vs_multi():
     orders = np.load(testdata_dir + "labels/attr_order.npy")
     configs = [f"bottleneck_{i}" for i in ["1", "3", "6"]]
     rates = []
+
     for conf in configs:
-        multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=conf, orders=orders)
+        multi_rates, _, _ = evaluate_scaling_vs_change_ratio_bottleneck(
+            config_name=conf, orders=orders
+        )
         rates.append(multi_rates)
+
     plot_ratios(
         ratios=rates,
         labels=configs,
@@ -154,94 +162,5 @@ def overall_change_ratio_single_vs_multi():
     )
 
 
-def individual_attr_change_ratio_single_vs_multi():
-    """
-    Compute the change ratio for each attribute and compare it for multi and single sequential transformers
-    """
-
-    for i, attr in enumerate(attrs[:]):
-
-        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(multi=False, attr=attr, attr_i=i)
-        multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio(multi=True, attr=attr, attr_i=i)
-        labels = ["Single", "Multi"]
-
-        plot_ratios(
-            ratios=[single_rates, multi_rates],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir + "indiv_ratio/",
-            title=f"Target change ratio for {attr}",
-            filename=f"ratio_{attr}.png",
-        )
-        plot_recon_vs_reg(
-            ratios=[single_rates, multi_rates],
-            recons=[single_recons, multi_recons],
-            regs=[single_regs, multi_regs],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir + "indiv_recon_vs_reg/",
-            title=f"Target change ratio for {attr}",
-            filename=f"recon_vs_reg_{attr}.png",
-        )
-
-def different_nattrs_ratio_single_vs_multi():
-    orders = np.load(testdata_dir + "labels/attr_order.npy")
-    all_rates = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
-    all_recons = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
-    all_regs = np.zeros((len(attrs), 2, len(torch.linspace(0, scale, n_steps))))
-    for i in range(len(attrs[:])):
-        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(multi=False, orders=orders[:, :i+1])
-        multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio(multi=True, orders=orders[:, :i+1])
-        labels = ["Single", "Multi"]
-
-        plot_recon_vs_reg(
-            ratios=[single_rates, multi_rates],
-            recons=[single_recons, multi_recons],
-            regs=[single_regs, multi_regs],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir + "n_attrs/",
-            title=f"Target change ratio for {i+1} attrs",
-            filename=f"{i+1}_attrs.png",
-        )
-
-        # Store results to avoid repeating computation
-        all_rates[i][0] = single_rates
-        all_rates[i][1] = multi_rates
-
-        all_recons[i][0] = single_recons
-        all_recons[i][1] = multi_recons
-
-        all_regs[i][0] = single_regs
-        all_regs[i][1] = multi_regs
-
-        np.save(save_dir + "n_attrs/all_rates.npy", all_rates)
-        np.save(save_dir + "n_attrs/all_recons.npy", all_recons)
-        np.save(save_dir + "n_attrs/all_regs.npy", all_regs)
-
-
-def nattrs_ratio_progression_single_vs_multi():
-    all_rates = np.load(save_dir + "n_attrs/all_rates.npy")
-    all_recons = np.load(save_dir + "n_attrs/all_recons.npy")
-    all_regs = np.load(save_dir + "n_attrs/all_regs.npy")
-
-    labels = ["Single", "Multi"]
-    coeffs = torch.linspace(0, scale, n_steps)
-
-    for n in [2,5,8,10]:
-        plot_nattr_evolution(
-            ratios=[all_rates[:,0, n], all_rates[:, 1, n]],
-            recons=[all_recons[:, 0, n], all_recons[:, 1, n]],
-            regs=[all_regs[:, 0, n], all_regs[:, 1, n]],
-            labels=labels,
-            output_dir=save_dir + "n_attrs_evolution/",
-            title=f"Change ratio over n attrs, scaling = {coeffs[n]:.2}",
-            filename=f"n_attrs_evolution_{coeffs[n]:.2}.png",
-        )
-
-
 if __name__ == "__main__":
-    overall_change_ratio_single_vs_multi()
-    # individual_attr_change_ratio_single_vs_multi()
-    # different_nattrs_ratio_single_vs_multi()
-    # nattrs_ratio_progression_single_vs_multi()
+    overall_change_ratio_bottleneck()
