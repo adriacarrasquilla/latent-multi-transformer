@@ -28,7 +28,7 @@ mapping_nonlinearity: 'linear'
 cls_type: 1
 latent_cls_type: 3013
 # Attributes
-attr: "Blond_hair,Bangs,Chubby,Smiling,Young,Male,Heavy_Makeup,No_Beard,Wearing_Lipstick,Big_Nose,High_Cheeckbones,Pale_Skin,Eyeglasses,Arched_Eyebrows,Narrow_Eyes"
+attr: "Blond_Hair,Bangs,Chubby,Smiling,Young,Male,Heavy_Makeup,No_Beard,Wearing_Lipstick,Big_Nose,High_Cheekbones,Pale_Skin,Eyeglasses,Arched_Eyebrows,Narrow_Eyes"
 # Loss weight
 corr_threshold: 1
 w:

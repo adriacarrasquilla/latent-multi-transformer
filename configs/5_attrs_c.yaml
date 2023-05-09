@@ -28,7 +28,7 @@ mapping_nonlinearity: 'linear'
 cls_type: 1
 latent_cls_type: 3013
 # Attributes
-attr: "Blond_hair,Bangs,Chubby,Smiling,Young"
+attr: "Blond_Hair,Bangs,Chubby,Smiling,Young"
 # Loss weight
 corr_threshold: 1
 w:
