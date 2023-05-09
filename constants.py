@@ -111,6 +111,25 @@ ATTR_TO_SPANISH = {
     "Young": "Joven",
 }
 
+# Dataset for eval in NATTRS
+NATTRS_NUM_TO_IDX = {
+    "Blond_Hair": 0,
+    "Bangs": 1,
+    "Chubby": 2,
+    "Smiling": 3,
+    "Young": 4,
+    "Male": 5,
+    "Heavy_Makeup": 6,
+    "No_Beard": 7,
+    "Wearing_Lipstick": 8,
+    "Big_Nose": 9,
+    "High_Cheekbones": 10,
+    "Pale_Skin":11,
+    "Eyeglasses": 12,
+    "Arched_Eyebrows": 13,
+    "Narrow_Eyes": 14,
+}
+
 # Paths
 LATENT_PATH = "./data/celebahq_dlatents_psp.npy"
 LABEL_FILE = "./data/celebahq_anno.npy"

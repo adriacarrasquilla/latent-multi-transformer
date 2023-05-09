@@ -5,7 +5,7 @@ import os
 
 import yaml
 
-from constants import ATTR_TO_NUM, DEVICE
+from constants import ATTR_TO_NUM, DEVICE, NATTRS_NUM_TO_IDX
 from plot_evaluation import plot_ratios
 from evaluation import apply_transformation, get_trainer
 from utils.functions import get_attr_change, get_target_change
@@ -21,7 +21,6 @@ scale = 2.0
 
 n_samples = 500
 
-
 def evaluate_scaling_vs_change_ratio_nattrs(
         attr_num, multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
         return_mean=True, n_steps=n_steps, scale=scale
@@ -31,18 +30,15 @@ def evaluate_scaling_vs_change_ratio_nattrs(
         # Initialize trainer
         trainer = get_trainer(multi)
 
-        if (attr and attr_i is not None) or orders is not None:
-            all_coeffs = np.load(testdata_dir + "labels/all.npy")
-            extra = f'for {attr}' if orders is None else f'for {orders.shape[1]} attrs'
-        else:
-            all_coeffs = np.load(testdata_dir + "labels/overall.npy")
-            extra = ""
+        all_coeffs = np.load(testdata_dir + "labels/n_attrs.npy")
 
         class_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         ident_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         attr_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
 
-        track_title = f"Evaluating {'multi' if multi else 'single'} model " + extra
+        track_title = f"Evaluating {'multi' if multi else 'single'} model"
+
+        attr_ids = [NATTRS_NUM_TO_IDX[ATTR_TO_NUM[a]] for a in attr_num]
 
         for k in track(range(n_samples), track_title):
             w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
@@ -60,7 +56,7 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                 coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
                 coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
             else:
-                coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
+                coeff = torch.tensor(all_coeffs[k][attr_ids]).to(DEVICE)
 
             scales = torch.linspace(0, scale, n_steps).to(DEVICE)
             range_coeffs = coeff * scales.reshape(-1, 1)
@@ -100,22 +96,20 @@ def n_attrs_evaluation():
     config_paths = ["5_attrs_nc", "5_attrs_c", "10_attrs", "15_attrs"]
 
     for c_path in config_paths:
-        config = yaml.safe_load(c_path)
+        config = yaml.safe_load(open("./configs/" + c_path + ".yaml", "r"))
         attrs = config["attr"].split(",")
         attr_num = [ATTR_TO_NUM[a] for a in attrs]
-        print(c_path, attr_num)
 
-    return
-    single_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(multi=False)
-    multi_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(multi=True)
-    labels = ["Single", "Multi"]
-    plot_ratios(
-        ratios=[single_rates, multi_rates],
-        labels=labels,
-        scales=torch.linspace(0, scale, n_steps),
-        output_dir=save_dir,
-        filename="nattrs_ratio.png"
-    )
+        single_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, multi=False)
+        multi_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, multi=True)
+        labels = ["Single", "Multi"]
+        plot_ratios(
+            ratios=[single_rates, multi_rates],
+            labels=labels,
+            scales=torch.linspace(0, scale, n_steps),
+            output_dir=save_dir,
+            filename=f"{c_path}_ratio.png"
+        )
 
-if "__name__" == "__main__":
+if __name__ == "__main__":
     n_attrs_evaluation()
