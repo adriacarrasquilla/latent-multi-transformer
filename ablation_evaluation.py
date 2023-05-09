@@ -141,11 +141,14 @@ def overall_change_ratio_single_vs_multi():
 
     # orders = None
     orders = np.load(testdata_dir + "labels/attr_order.npy")
-    multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=opts.config, orders=orders)
-    labels = ["Single", "Multi"]
+    configs = [f"bottleneck_{i}" for i in ["1", "3", "6"]]
+    rates = []
+    for conf in configs:
+        multi_rates, _, _ = evaluate_scaling_vs_change_ratio(config_name=conf, orders=orders)
+        rates.append(multi_rates)
     plot_ratios(
-        ratios=[multi_rates, multi_rates],
-        labels=labels,
+        ratios=rates,
+        labels=configs,
         scales=torch.linspace(0, scale, n_steps),
         output_dir=save_dir,
     )
