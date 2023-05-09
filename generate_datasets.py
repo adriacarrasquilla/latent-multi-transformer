@@ -167,7 +167,7 @@ def subjective_form_assets(n_imgs=20, AB=False):
 
 
 # individual_dataset()
-overall_dataset(name="nattrs")
+overall_dataset(name=conf_file)
 # attributes_order_dataset()
 # subjective_study()
-subjective_form_assets()
+# subjective_form_assets()

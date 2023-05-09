@@ -23,14 +23,14 @@ n_samples = 500
 
 def evaluate_scaling_vs_change_ratio_nattrs(
         attr_num, config, attrs, log_dir, multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
-        return_mean=True, n_steps=n_steps, scale=scale
+        return_mean=True, n_steps=n_steps, scale=scale, conf_name="",
     ):
 
     with torch.no_grad():
         # Initialize trainer
         trainer = get_trainer(multi, config=config, attr_num=attr_num, attrs=attrs, log_dir=log_dir)
 
-        all_coeffs = np.load(testdata_dir + "labels/nattrs.npy")
+        all_coeffs = np.load(testdata_dir + f"labels/{conf_name}.npy")
 
         class_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
         ident_ratios = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
@@ -38,7 +38,7 @@ def evaluate_scaling_vs_change_ratio_nattrs(
 
         track_title = f"Evaluating {'multi' if multi else 'single'} model"
 
-        attr_ids = [NATTRS_NUM_TO_IDX[NUM_TO_ATTR[a]] for a in attr_num]
+        # attr_ids = [NATTRS_NUM_TO_IDX[NUM_TO_ATTR[a]] for a in attr_num]
 
         for k in track(range(n_samples), track_title):
             w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
@@ -56,7 +56,7 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                 coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
                 coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
             else:
-                coeff = torch.tensor(all_coeffs[k][attr_ids]).to(DEVICE)
+                coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
 
             scales = torch.linspace(0, scale, n_steps).to(DEVICE)
             range_coeffs = coeff * scales.reshape(-1, 1)
@@ -101,8 +101,8 @@ def n_attrs_evaluation():
         attr_num = [ATTR_TO_NUM[a] for a in attrs]
         log_dir = f"./logs/{c_path}"
 
-        multi_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True)
-        single_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False)
+        multi_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True, conf_name=c_path)
+        single_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False, conf_name=c_path)
         labels = ["Single", "Multi"]
         plot_ratios(
             ratios=[single_rates, multi_rates],
