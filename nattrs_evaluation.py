@@ -8,7 +8,8 @@ import yaml
 from constants import ATTR_TO_NUM, DEVICE, NATTRS_NUM_TO_IDX, NUM_TO_ATTR
 from plot_evaluation import plot_ratios
 from evaluation import apply_transformation, get_trainer
-from utils.functions import get_attr_change, get_target_change
+from utils.functions import clip_img, get_attr_change, get_target_change
+from torchvision import utils
 
 log_dir_single = os.path.join("./logs", "original_train") + "/"
 save_dir = os.path.join("./outputs/evaluation/n_attrs") + "/"
@@ -20,6 +21,7 @@ n_steps = 11
 scale = 2.0
 
 n_samples = 500
+
 
 def evaluate_scaling_vs_change_ratio_nattrs(
         attr_num, config, attrs, log_dir, multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
@@ -64,6 +66,10 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                 w_1 = apply_transformation(
                     trainer=trainer, w_0=w_0, coeff=alpha, multi=multi
                 )
+                if k % 100 == 0:
+                    w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                    x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                    utils.save_image(clip_img(x_1), save_dir + conf_name + ("_multi_" if multi else "_single_") + str(k) + '.jpg')
 
                 predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
                 lbl_1 = torch.sigmoid(predict_lbl_1)
