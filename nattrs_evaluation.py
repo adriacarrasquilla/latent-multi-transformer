@@ -64,7 +64,7 @@ def evaluate_scaling_vs_change_ratio_nattrs(
             range_coeffs = coeff * scales.reshape(-1, 1)
             for i, alpha in enumerate(range_coeffs):
                 w_1 = apply_transformation(
-                    trainer=trainer, w_0=w_0, coeff=alpha, multi=multi
+                    trainer=trainer, w_0=w_0, coeff=alpha, multi=multi, attrs=attrs
                 )
                 if k % 100 == 0:
                     w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)

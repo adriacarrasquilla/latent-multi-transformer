@@ -74,7 +74,7 @@ def get_trainer(multi=True, config=config, log_dir=log_dir, attr_num=attr_num, a
     return trainer
 
 
-def apply_transformation(trainer, w_0, coeff, multi=True):
+def apply_transformation(trainer, w_0, coeff, attrs=attrs, multi=True):
     # Use w_0 in case something goes wrong
     w_1 = w_0
 
