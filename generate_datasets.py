@@ -34,13 +34,13 @@ classifier.load_state_dict(torch.load(classifier_model_path, map_location=DEVICE
 classifier.eval()
 classifier.to(DEVICE)
 
-conf_file = 'new_train'
+conf_file = '15_attrs'
 config = yaml.safe_load(open('./configs/' + conf_file + '.yaml', 'r'))
 all_attrs = [ATTR_TO_NUM[a] for a in config["attr"].split(',')]
 
 n_samples = 1000
 
-def overall_dataset(n_samples=n_samples, all_attrs=all_attrs):
+def overall_dataset(n_samples=n_samples, all_attrs=all_attrs, name="overall"):
     all_coeffs = np.zeros((n_samples,len(all_attrs)), dtype=np.int8)
 
     for k in range(n_samples):
@@ -55,7 +55,7 @@ def overall_dataset(n_samples=n_samples, all_attrs=all_attrs):
         coeff = torch.where(attr_pb_0 > 0.5, -1, 1).detach().cpu().numpy()
         all_coeffs[k][local_attrs] = coeff
 
-    np.save(out_dir + "overall.npy", all_coeffs)
+    np.save(out_dir + f"{name}.npy", all_coeffs)
 
 
 def individual_dataset(n_samples=n_samples, all_attrs=all_attrs):
@@ -167,7 +167,7 @@ def subjective_form_assets(n_imgs=20, AB=False):
 
 
 # individual_dataset()
-# overall_dataset()
+overall_dataset(name="nattrs")
 # attributes_order_dataset()
 # subjective_study()
 subjective_form_assets()
