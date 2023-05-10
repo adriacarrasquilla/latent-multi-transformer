@@ -92,8 +92,8 @@ for attr in attr_l:
 
             if (total_iter+1) % config['log_iter'] == 0:
                 trainer.log_loss(logger, total_iter)
-            if (total_iter+1) % config['image_log_iter'] == 0:
-                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
+            # if (total_iter+1) % config['image_log_iter'] == 0:
+            #     trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample

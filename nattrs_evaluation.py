@@ -6,7 +6,7 @@ import os
 import yaml
 
 from constants import ATTR_TO_NUM, DEVICE, NATTRS_NUM_TO_IDX, NUM_TO_ATTR
-from plot_evaluation import plot_ratios
+from plot_evaluation import plot_ratios, plot_recon_vs_reg
 from evaluation import apply_transformation, get_trainer
 from utils.functions import clip_img, get_attr_change, get_target_change
 from torchvision import utils
@@ -66,10 +66,10 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                 w_1 = apply_transformation(
                     trainer=trainer, w_0=w_0, coeff=alpha, multi=multi, attrs=attrs
                 )
-                if k % 100 == 0:
-                    w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
-                    x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
-                    utils.save_image(clip_img(x_1), save_dir + conf_name + ("_multi_" if multi else "_single_") + str(k) + '.jpg')
+                # if k % 100 == 0:
+                #     w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                #     x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                #     utils.save_image(clip_img(x_1), save_dir + conf_name + ("_multi_" if multi else "_single_") + str(k) + '.jpg')
 
                 predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
                 lbl_1 = torch.sigmoid(predict_lbl_1)
@@ -107,16 +107,30 @@ def n_attrs_evaluation():
         attr_num = [ATTR_TO_NUM[a] for a in attrs]
         log_dir = f"./logs/{c_path}"
 
-        multi_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True, conf_name=c_path)
-        single_rates, _, _ = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False, conf_name=c_path)
+        multi_rates, multi_recons, multi_regs = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True, conf_name=c_path)
+        single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False, conf_name=c_path)
         labels = ["Single", "Multi"]
+
         plot_ratios(
             ratios=[single_rates, multi_rates],
             labels=labels,
             scales=torch.linspace(0, scale, n_steps),
             output_dir=save_dir,
-            filename=f"{c_path}_ratio.png"
+            filename=f"{c_path}_ratio.png",
+            title=f"Target change ratio for {c_path}",
         )
+
+        plot_recon_vs_reg(
+            ratios=[single_rates, multi_rates],
+            recons=[single_recons, multi_recons],
+            regs=[single_regs, multi_regs],
+            labels=labels,
+            scales=torch.linspace(0, scale, n_steps),
+            output_dir=save_dir,
+            title=f"Reg and recon vs target change for {c_path}",
+            filename=f"{c_path}_recon_reg.png",
+        )
+
 
 if __name__ == "__main__":
     n_attrs_evaluation()
