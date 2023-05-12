@@ -45,7 +45,7 @@ loader_A = data.DataLoader(dataset_A, batch_size=batch_size, shuffle=True)
 
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
 
-def get_multi_performance(verbose=False):
+def get_multi_performance(max_iters=100, verbose=False):
 
     max_memories = []
     iteration_times = []
@@ -76,7 +76,7 @@ def get_multi_performance(verbose=False):
             e_time = time.time() - t
             times.append(e_time)
 
-            if n_iter == 100:
+            if n_iter == max_iters:
                 break
 
         max_memory_allocated = torch.cuda.max_memory_allocated() / 1024**2  # Convert bytes to gigabytes
@@ -98,7 +98,7 @@ def get_multi_performance(verbose=False):
 
     return iteration_times, max_memories, file_sizes
 
-def get_single_performance(verbose=False):
+def get_single_performance(max_iters=100, verbose=False):
     attr_n = attr_num[0]
     attr = attrs[0]
 
@@ -122,7 +122,7 @@ def get_single_performance(verbose=False):
         e_time = time.time() - t
         times.append(e_time)
 
-        if n_iter == 100:
+        if n_iter == max_iters:
             break
 
     max_memories = []
@@ -152,8 +152,9 @@ def get_single_performance(verbose=False):
     return iteration_times, max_memories, file_sizes
 
 if __name__ == "__main__":
-    single_times, single_memories, single_files = get_single_performance()
-    multi_times, multi_memories, multi_files = get_multi_performance()
+    max_iters = 10
+    single_times, single_memories, single_files = get_single_performance(max_iters=max_iters)
+    multi_times, multi_memories, multi_files = get_multi_performance(max_iters=max_iters)
     plot_performance(
         times=[single_times, multi_times],
         memories=[single_memories, multi_memories],
