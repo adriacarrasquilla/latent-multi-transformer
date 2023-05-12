@@ -161,5 +161,42 @@ def plot_images_table(ratios, coeff, attrs, save_dir):
     plt.clf()
 
 
+def plot_performance(times, memories, files, labels, output_dir="outputs/performance/"):
 
+    os.makedirs(output_dir, exist_ok=True)
 
+    n_attrs = list(range(0,21,5))
+    n_attrs[0] = 1
+
+    # time plot
+    plt.figure(figsize=(8,5))
+    for time, label in zip(times, labels):
+        plt.plot(time, n_attrs, label=label, marker='.')
+    plt.title("Comparison of training time needed per iteration", fontsize=16)
+    plt.legend(fontsize=12)
+    plt.xlabel("Number of attributes learned", fontsize=12)
+    plt.ylabel("Mean time per iteration (s)", fontsize=12)
+    plt.savefig(output_dir + "time.png")
+    plt.clf()
+
+    # memory plot
+    plt.figure(figsize=(8,5))
+    for mem, label in zip(memories, labels):
+        plt.plot(mem, n_attrs, label=label, marker='.')
+    plt.title("Comparison of peak GPU memory usage in training", fontsize=16)
+    plt.legend(fontsize=12)
+    plt.xlabel("Number of attributes learned", fontsize=12)
+    plt.ylabel("Peak GPU memory usage (MB)", fontsize=12)
+    plt.savefig(output_dir + "memory.png")
+    plt.clf()
+
+    # file plot
+    plt.figure(figsize=(8,5))
+    for file, label in zip(files, labels):
+        plt.plot(file, n_attrs, label=label, marker='.')
+    plt.title("Comparison of total model file output size", fontsize=16)
+    plt.legend(fontsize=12)
+    plt.xlabel("Number of attributes learned", fontsize=12)
+    plt.ylabel("Total model size (MB)", fontsize=12)
+    plt.savefig(output_dir + "file.png")
+    plt.clf()
