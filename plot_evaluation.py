@@ -176,6 +176,7 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     plt.legend(fontsize=12)
     plt.xlabel("Number of attributes learned", fontsize=12)
     plt.ylabel("Mean time per iteration (s)", fontsize=12)
+    plt.xticks(n_attrs)
     plt.savefig(output_dir + "time.png")
     plt.clf()
 
@@ -187,6 +188,7 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     plt.legend(fontsize=12)
     plt.xlabel("Number of attributes learned", fontsize=12)
     plt.ylabel("Peak GPU memory usage (MB)", fontsize=12)
+    plt.xticks(n_attrs)
     plt.savefig(output_dir + "memory.png")
     plt.clf()
 
@@ -198,5 +200,6 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     plt.legend(fontsize=12)
     plt.xlabel("Number of attributes learned", fontsize=12)
     plt.ylabel("Total model size (MB)", fontsize=12)
+    plt.xticks(n_attrs)
     plt.savefig(output_dir + "file.png")
     plt.clf()

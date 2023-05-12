@@ -152,7 +152,7 @@ def get_single_performance(max_iters=100, verbose=False):
     return iteration_times, max_memories, file_sizes
 
 if __name__ == "__main__":
-    max_iters = 10
+    max_iters = 300
     single_times, single_memories, single_files = get_single_performance(max_iters=max_iters)
     multi_times, multi_memories, multi_files = get_multi_performance(max_iters=max_iters)
     plot_performance(
