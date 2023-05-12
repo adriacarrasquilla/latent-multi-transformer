@@ -66,12 +66,12 @@ for n_iter, list_A in track(enumerate(loader_A), "Training model..."):
     e_time = time.time() - t
     times.append(e_time)
 
-    if n_iter == 10:
+    if n_iter == 100:
         break
 
-print(f"Mean time for 10 iterations (per iteration): {np.mean(times)}")
+print(f"Mean time for 100 iterations (per iteration): {np.mean(times)}")
 max_memory_allocated = torch.cuda.max_memory_allocated() / 1024**2  # Convert bytes to gigabytes
 print(f"Maximum GPU memory allocated: {max_memory_allocated:.2f} MB")
 trainer.save_model_multi(log_dir, name="20_attrs")
-model_size = os.path.getsize(log_dir + "20_attrs.pth")
+model_size = os.path.getsize(log_dir + "tnet_20_attrs.pth.tar")
 print(model_size / 1024**2)
