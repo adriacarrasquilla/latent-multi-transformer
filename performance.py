@@ -58,7 +58,7 @@ for n_attrs in range(0,21,4):
     torch.cuda.reset_peak_memory_stats()
     torch.cuda.empty_cache()
     total_iter = 0
-    for n_iter, list_A in track(enumerate(loader_A), "Training model with {n} attributes..."):
+    for n_iter, list_A in track(enumerate(loader_A), f"Training model with {n} attributes..."):
         t = time.time()
         w_A, lbl_A = list_A
         w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
@@ -68,15 +68,15 @@ for n_attrs in range(0,21,4):
         e_time = time.time() - t
         times.append(e_time)
 
-        if n_iter == 10:
+        if n_iter == 100:
             break
 
     print(f"----- RESULTS FOR {n} ATTRIBUTES -----")
-    print(f"Iteration mean time for 10 iterations (per iteration): {np.mean(times)}")
+    print(f"Iteration mean time for 100 iterations (per iteration): {np.mean(times)}")
     max_memory_allocated = torch.cuda.max_memory_allocated() / 1024**2  # Convert bytes to gigabytes
     print(f"Maximum GPU memory allocated: {max_memory_allocated:.2f} MB")
     trainer.save_model_multi(log_dir, name="performance")
-    model_size = os.path.getsize(log_dir + "perforance.pth.tar")
-    print(model_size / 1024**2)
-    os.remove(log_dir + "performance.pth.tar")
+    model_size = os.path.getsize(log_dir + "tnet_performance.pth.tar") / 1024**2
+    print("Model output file size: {model_size:.2f} MB")
+    os.remove(log_dir + "tnet_performance.pth.tar")
     print(f"--------------------------------------")
