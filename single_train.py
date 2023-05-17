@@ -40,6 +40,7 @@ parser.add_argument('--log_path', type=str, default='./logs/', help='log file pa
 parser.add_argument('--resume', type=bool, default=False, help='resume from checkpoint')
 parser.add_argument('--checkpoint', type=str, default='', help='checkpoint file path')
 parser.add_argument('--multigpu', type=bool, default=False, help='use multiple gpus')
+parser.add_argument('--attr', type=str, default=None, help='Override config')
 opts = parser.parse_args()
 
 # Celeba attribute list
@@ -60,6 +61,10 @@ logger = SummaryWriter(log_dir=log_dir)
 
 config = yaml.safe_load(open('./configs/' + opts.config + '.yaml', 'r'))
 attr_l = config['attr'].split(',')
+
+if  opts.attr:
+    attr_l = [opts.attr]
+
 batch_size = config['batch_size']
 epochs = config['epochs']
 
@@ -90,8 +95,8 @@ for attr in attr_l:
             w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
             trainer.update(w_A, None, n_iter)
 
-            if (total_iter+1) % config['log_iter'] == 0:
-                trainer.log_loss(logger, total_iter)
+            # if (total_iter+1) % config['log_iter'] == 0:
+            #     trainer.log_loss(logger, total_iter)
             # if (total_iter+1) % config['image_log_iter'] == 0:
             #     trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
                 # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
@@ -100,8 +105,8 @@ for attr in attr_l:
 
             total_iter += 1
 
-            # if n_iter == 10000:
-            #     break
+            if n_iter == 1:
+                break
 
         trainer.save_model(log_dir)
         e_time = time.time() - t
