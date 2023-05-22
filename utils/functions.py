@@ -43,7 +43,7 @@ def get_attr_change(lbl_0, lbl_1, coeff, attr_num, threshold=0.25, mean=True):
     if mean:
         return (ratios.sum() / ratios.size(0)).item()
     else:
-        return ratios
+        return ratios, mask.detach().cpu().numpy()
 
         
 def clip_img(x):

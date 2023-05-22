@@ -64,7 +64,7 @@ def evaluate_scaling_vs_change_ratio_nattrs(
 
             corr_vector = trainer.get_correlation_multi(attr_num, coeffs=coeff)
             correlated_mask = (0 < corr_vector) & ( corr_vector < 0.7)
-            uncorrelated_mask =  ( corr_vector >= 0.7)
+            uncorrelated_mask = corr_vector >= 0.7
             # print(f"correlated: {correlated_mask}")
             # print(f"not correlated: {uncorrelated_mask}")
 
@@ -85,14 +85,26 @@ def evaluate_scaling_vs_change_ratio_nattrs(
 
                 ident_ratio = trainer.MSEloss(w_1, w_0)
                 attr_ratio = get_attr_change(lbl_0, lbl_1, coeff, attr_num)
-                attr_ratios_all = get_attr_change(lbl_0, lbl_1, coeff, attr_num, mean=True)
+                attr_ratios_all, target_mask = get_attr_change(lbl_0, lbl_1, coeff, attr_num, mean=False)
                 class_ratio = get_target_change(attr_pb_0, attr_pb_1, coeff)
+
+                current_correlated_mask = correlated_mask[target_mask]
+                current_uncorrelated_mask = uncorrelated_mask[target_mask]
 
                 class_ratios[k][i] = class_ratio
                 ident_ratios[k][i] = ident_ratio
                 attr_ratios[k][i] = attr_ratio
-                attr_ratios_corr[k][i] = (attr_ratios_all * correlated_mask).mean(axis=0)
-                attr_ratios_uncorr[k][i] = (attr_ratios_all * uncorrelated_mask).mean(axis=0)
+                if current_correlated_mask.any():
+                    attr_ratios_corr[k][i] = (attr_ratios_all[current_correlated_mask].sum() / attr_ratios_all[current_correlated_mask].size(0))
+                else:
+                    attr_ratios_corr[k][i] = 1
+
+                if current_uncorrelated_mask.any():
+                    attr_ratios_uncorr[k][i] = (attr_ratios_all[current_uncorrelated_mask].sum() / attr_ratios_all[current_uncorrelated_mask].size(0))
+                else:
+                    attr_ratios_corr[k][i] = 1
+
+                # attr_ratios_uncorr[k][i] = attr_ratios_all[uncorrelated_mask].mean(axis=0)
 
         if return_mean:
             class_r = class_ratios.mean(axis=0)
