@@ -28,7 +28,7 @@ def get_target_change(lbl_0, lbl_1, coeff, threshold=0.5, mean=True):
         return ratios
 
 
-def get_attr_change(lbl_0, lbl_1, coeff, attr_num, threshold=0.25):
+def get_attr_change(lbl_0, lbl_1, coeff, attr_num, threshold=0.25, mean=True):
     """Compute whether the classification changed or not"""
 
     changes = torch.abs(lbl_0 - lbl_1)[0]
@@ -39,7 +39,11 @@ def get_attr_change(lbl_0, lbl_1, coeff, attr_num, threshold=0.25):
     mask[targets] = False
     ratios = changes.lt(threshold)[mask]
     # return ratios.all().int().item() # Return only one if all of them are unchanged
-    return (ratios.sum() / ratios.size(0)).item()
+
+    if mean:
+        return (ratios.sum() / ratios.size(0)).item()
+    else:
+        return ratios
 
         
 def clip_img(x):

@@ -69,6 +69,41 @@ def plot_recon_vs_reg(recons, regs, ratios, labels, scales, output_dir="outputs/
 
     plt.savefig(output_dir + filename)
 
+def plot_corr_vs_uncorr(ratios, corr, uncorr, labels, scales, output_dir="outputs/evaluation/",
+                title="Comparisson of target change ratio", filename="ratio_comparison.png"):
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Concatenate all values for getting easier the min, max values
+    corr_cat = np.concatenate(corr)
+    uncorr_cat = np.concatenate(uncorr)
+
+    plt.figure(figsize=(7,14))
+
+    plt.subplot(2,1,1)
+    for ratio, recon, label in zip(ratios, corr, labels):
+        plt.plot(ratio, recon, label=label, marker='.')
+
+    plt.title(title, fontsize=16)
+    plt.legend(fontsize=12)
+    plt.xlabel("Target Change Ratio", fontsize=12)
+    plt.ylabel("Correlated attr preservation", fontsize=12)
+    plt.xlim(0 - PAD, 1 + PAD)
+    plt.ylim(corr_cat.min(), corr_cat.max())
+
+    plt.subplot(2,1,2)
+    for ratio, reg, label in zip(ratios, uncorr, labels):
+        plt.plot(ratio, reg, label=label, marker='.')
+
+    plt.legend(fontsize=12)
+    plt.xlabel("Target Change Ratio", fontsize=12)
+    plt.ylabel("Uncorrelated attr preservation", fontsize=12)
+    plt.xlim(0 - PAD, 1 + PAD)
+    plt.ylim(uncorr_cat.min(), uncorr_cat.max())
+    # plt.ylim(0.8, 1 + PAD*0.1)
+
+    plt.savefig(output_dir + filename)
+
 
 def plot_nattr_evolution(recons, regs, ratios, labels, output_dir="outputs/evaluation/",
                          title="Comparisson of target change ratio", filename="ratio_comparison.png"):
