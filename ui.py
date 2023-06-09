@@ -11,7 +11,7 @@ from trainer import Trainer
 
 from constants import LABEL_FILE, LATENT_PATH, LABEL_FILE, DEVICE, LOG_DIR, STYLEGAN, CLASSIFIER
 
-experiment = "main_train"
+experiment = "10_attrs_c"
 n_attrs = 20
 
 # Load basic config

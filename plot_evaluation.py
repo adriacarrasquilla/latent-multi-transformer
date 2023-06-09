@@ -2,13 +2,12 @@ import os
 
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
+import matplotlib.patches as mpatches
 import numpy as np
 import torch
 import textwrap
 
 from PIL import Image
-from constants import NUM_TO_ATTR
 from utils.functions import clip_img
 
 matplotlib.use("tkagg")
@@ -16,11 +15,11 @@ matplotlib.use("tkagg")
 PAD = 0.05
 
 def plot_ratios(ratios, labels, scales, output_dir="outputs/evaluation/",
-                title="Comparisson of target change ratio", filename="ratio_comparison.png"):
+                title="Comparisson of target change ratio", filename="ratio_comparison.png", figsize=(8,5)):
 
     os.makedirs(output_dir, exist_ok=True)
 
-    plt.figure(figsize=(8,5))
+    plt.figure(figsize=figsize)
 
     for ratio, label in zip(ratios, labels):
         plt.plot(ratio, scales, label=label, marker='.')
@@ -32,6 +31,48 @@ def plot_ratios(ratios, labels, scales, output_dir="outputs/evaluation/",
     plt.xlim(0 - PAD, 1 + PAD)
     plt.ylim(scales[0] - PAD, scales[-1] + PAD)
     plt.savefig(output_dir + filename)
+
+
+def plot_ratios_stacked(single_ratios, multi_ratios, attrs, scales, output_dir="outputs/evaluation/"):
+
+    # Create a figure with subplots for each group of 4 elements
+    num_plots = len(single_ratios) // 5
+    print(num_plots)
+    fig, axs = plt.subplots(num_plots, 5, sharey=True, figsize=(15, 10))
+
+    multis, singles = [], []
+
+    # Iterate over the data and create subplots
+    for i in range(num_plots):
+        for j in range(5):
+            ax = axs[i, j] if num_plots > 1 else axs[j]
+            sing, = ax.plot(single_ratios[i * 5 + j], scales, label="Single", marker='.')
+            mult, = ax.plot(multi_ratios[i * 5 + j], scales, label="Multi", marker='.')
+            ax.set_title(attrs[i * 5 + j])
+            ax.set_xlim(0 - PAD, 1 + PAD)
+            ax.set_ylim(scales[0] - PAD, scales[-1] + PAD)
+            multis.append(mult)
+            singles.append(sing)
+
+    # Set common y-axis label
+    fig.text(0.08, 0.5, 'Scaling Factor', va='center', rotation='vertical')
+
+    # Set common x-axis label
+    fig.text(0.5, 0.06, 'Target Change Ratio', ha='center')
+
+    legend_handles = [
+        mpatches.Patch(color='blue', label='Single'),
+        mpatches.Patch(color='orange', label='Multi')
+    ]
+
+    # Create a general legend
+    fig.legend(handles=legend_handles)
+
+    # Adjust the spacing between subplots
+    fig.subplots_adjust(wspace=0.2, hspace=0.4)
+
+    # Display the figure
+    plt.savefig(output_dir + f"individual_all.png")
 
 
 def plot_recon_vs_reg(recons, regs, ratios, labels, scales, output_dir="outputs/evaluation/",
