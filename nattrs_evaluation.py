@@ -6,7 +6,7 @@ import os
 import yaml
 
 from constants import ATTR_TO_NUM, DEVICE, NATTRS_NUM_TO_IDX, NUM_TO_ATTR
-from plot_evaluation import plot_corr_vs_uncorr, plot_ratios, plot_recon_vs_reg
+from plot_evaluation import plot_corr_vs_uncorr, plot_ratios, plot_ratios_row, plot_recon_vs_reg, plot_recon_vs_reg_row
 from evaluation import apply_transformation, get_trainer
 from utils.functions import clip_img, get_attr_change, get_target_change
 from torchvision import utils
@@ -122,52 +122,60 @@ def evaluate_scaling_vs_change_ratio_nattrs(
         return class_r, recons, attr_r, attr_r_corr, attr_r_uncorr
 
 
-def n_attrs_evaluation():
+def n_attrs_evaluation(compute=False):
     """
     Compute the overall change ratio and compare it for multi and single sequential transformers
     """
     config_paths = ["5_attrs_nc", "5_attrs_c", "10_attrs", "15_attrs"]
+    all_ratios = []
+    all_recons = []
+    all_regs = []
+    titles = ["5 correlated attributes", "5 non-correlated attributes", "10 attributes", "15 attributes"]
+    labels = ["Single", "Multi"]
+    n_samples = 100
 
-    for c_path in config_paths:
-        config = yaml.safe_load(open("./configs/" + c_path + ".yaml", "r"))
-        attrs = config["attr"].split(",")
-        attr_num = [ATTR_TO_NUM[a] for a in attrs]
-        log_dir = f"./logs/{c_path}"
+    if compute:
+        for c_path in config_paths:
+            config = yaml.safe_load(open("./configs/" + c_path + ".yaml", "r"))
+            attrs = config["attr"].split(",")
+            attr_num = [ATTR_TO_NUM[a] for a in attrs]
+            log_dir = f"./logs/{c_path}"
 
-        multi_rates, multi_recons, multi_regs, multi_corr, multi_uncorr = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True, conf_name=c_path)
-        single_rates, single_recons, single_regs, single_corr, single_uncorr = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False, conf_name=c_path)
-        labels = ["Single", "Multi"]
+            multi_rates, multi_recons, multi_regs, multi_corr, multi_uncorr = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config, attrs=attrs, log_dir=log_dir, multi=True, conf_name=c_path, n_samples=n_samples)
+            single_rates, single_recons, single_regs, single_corr, single_uncorr = evaluate_scaling_vs_change_ratio_nattrs(attr_num=attr_num, config=config,attrs=attrs, log_dir=log_dir, multi=False, conf_name=c_path, n_samples=n_samples)
 
-        plot_ratios(
-            ratios=[single_rates, multi_rates],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir,
-            filename=f"{c_path}_ratio.png",
-            title=f"Target change ratio for {c_path}",
-        )
+            all_ratios.append([single_rates, multi_rates])
+            all_recons.append([single_recons, multi_recons])
+            all_regs.append([single_regs, multi_regs])
 
-        plot_recon_vs_reg(
-            ratios=[single_rates, multi_rates],
-            recons=[single_recons, multi_recons],
-            regs=[single_regs, multi_regs],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir,
-            title=f"Reg and recon vs target change for {c_path}",
-            filename=f"{c_path}_recon_reg.png",
-        )
-        plot_corr_vs_uncorr(
-            ratios=[single_rates, multi_rates],
-            corr=[single_corr, multi_corr],
-            uncorr=[single_uncorr, multi_uncorr],
-            labels=labels,
-            scales=torch.linspace(0, scale, n_steps),
-            output_dir=save_dir,
-            title=f"Correlated and uncorrelated attr change: {c_path}",
-            filename=f"{c_path}_corr_vs_uncorr.png",
-        )
+        all_ratios = np.array(all_ratios)
+        all_recons = np.array(all_recons)
+        all_regs = np.array(all_regs)
+
+        np.save("./outputs/evaluation/all_ratios.npy", all_ratios)
+        np.save("./outputs/evaluation/all_recons.npy", all_recons)
+        np.save("./outputs/evaluation/all_regs.npy", all_regs)
+
+            # plot_corr_vs_uncorr(
+            #     ratios=[single_rates, multi_rates],
+            #     corr=[single_corr, multi_corr],
+            #     uncorr=[single_uncorr, multi_uncorr],
+            #     labels=labels,
+            #     scales=torch.linspace(0, scale, n_steps),
+            #     output_dir=save_dir,
+            #     title=f"Correlated and uncorrelated attr change: {c_path}",
+            #     filename=f"{c_path}_corr_vs_uncorr.png",
+            # )
+    else:
+        all_ratios = np.load("./outputs/evaluation/all_ratios.npy")
+        all_recons = np.load("./outputs/evaluation/all_recons.npy")
+        all_regs = np.load("./outputs/evaluation/all_regs.npy")
+
+
+    plot_ratios_row(all_ratios=all_ratios, labels=labels, scales=torch.linspace(0, scale, n_steps), titles=titles, filename="ratios_n_attrs.png")
+    plot_recon_vs_reg_row(all_regs=all_regs, all_recons=all_recons, all_ratios=all_ratios, titles=titles, labels=labels, filename="n_attrs.png")
+
 
 
 if __name__ == "__main__":
-    n_attrs_evaluation()
+    n_attrs_evaluation(compute=False)

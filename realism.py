@@ -100,6 +100,14 @@ def compute_realism_scores():
         question_pct.at[i-1, "SSIM"] = diffs_ssim[i]
         question_pct.at[i-1, "LPIPS"] = diffs_lpips[i]
 
+        question_pct.at[i-1, "PSNR_s"] = psnr_t1
+        question_pct.at[i-1, "SSIM_s"] = ssim_t1
+        question_pct.at[i-1, "LPIPS_s"] = lpips_t1
+
+        question_pct.at[i-1, "PSNR_m"] = psnr_t2
+        question_pct.at[i-1, "SSIM_m"] = ssim_t2
+        question_pct.at[i-1, "LPIPS_m"] = lpips_t2
+
     print("\nTimes Multi has better results out of 20:")
     print("PSNR: ", psnr_better)
     print("SSIM: ", ssim_better)
@@ -113,6 +121,8 @@ def compute_realism_scores():
 
     print(question_pct)
 
+    question_pct.to_csv("./data/subjective/form/quantitative_cmp.csv")
+
 
 def check_hardcoded():
     df = pd.read_csv("./data/subjective/form/quantitative_cmp.csv")
@@ -124,9 +134,9 @@ def check_hardcoded():
     print(df[["PSNR", "SSIM", "LPIPS"]].head(5).describe())
     print(df[["PSNR", "SSIM", "LPIPS"]].tail(5).describe())
 
-    print(df["LPIPS"].head(7).corr(df["multi"]))
-    print(df["PSNR"].head(7).corr(df["multi"]))
-    print(df["SSIM"].head(7).corr(df["multi"]))
+    print(df["LPIPS"].head(5).corr(df["multi"]))
+    print(df["PSNR"].head(5).corr(df["multi"]))
+    print(df["SSIM"].head(5).corr(df["multi"]))
 
     print(df["LPIPS"].tail(13).corr(df["multi"]))
     print(df["PSNR"].tail(13).corr(df["multi"]))
@@ -136,6 +146,9 @@ def check_hardcoded():
     print(df["PSNR"].corr(df["multi"]))
     print(df["SSIM"].corr(df["multi"]))
 
+    print(df.describe())
+
 
 if __name__ == "__main__":
+    # compute_realism_scores()
     check_hardcoded()

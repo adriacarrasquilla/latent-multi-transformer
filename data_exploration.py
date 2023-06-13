@@ -108,7 +108,7 @@ def data_distribution():
 
     width = 0.5
 
-    fig, ax = plt.subplots(figsize=(15,7))
+    fig, ax = plt.subplots(figsize=(10,4))
     bottom = np.zeros(len(summary))
 
     for (boolean, weight_count), color in zip(weight_counts.items(), colors):
@@ -127,7 +127,7 @@ def data_distribution():
 def plot_correlation():
     corr_ma = np.load("out_images/corr.npy")
     labels = [NUM_TO_ATTR[l] for l in range(len(NUM_TO_ATTR))]
-    fig, ax = plt.subplots(figsize=(20,20))
+    fig, ax = plt.subplots(figsize=(15,15))
     im = ax.imshow(corr_ma, cmap=my_gradient)
     ax.set_xticks(np.arange(len(labels)), labels=labels, fontsize=14)
     ax.set_yticks(np.arange(len(labels)), labels=labels, fontsize=14)
@@ -140,10 +140,10 @@ def plot_correlation():
                 color = "#888888"
             else:
                 color = "#282828"
-            text = ax.text(j, i, f"{corr_ma[i, j]:.1f}", ha="center", va="center", color=color, fontsize=12)
+            text = ax.text(j, i, f"{corr_ma[i, j]:.1f}", ha="center", va="center", color=color, fontsize=10)
 
     fig.tight_layout()
-    plt.savefig("out_images/correlation.png", bbox_inches="tight")
+    plt.savefig("out_images/correlation_small.png", bbox_inches="tight")
 
 def plot_correlation_subset(labels, title="sub_corr"):
     corr_ma = np.load("out_images/corr.npy")
@@ -170,7 +170,8 @@ def plot_correlation_subset(labels, title="sub_corr"):
     plt.savefig(f"out_images/{title}.png", bbox_inches="tight")
 
 if __name__ == "__main__":
-    labels = ["Young", "Smiling", "No_Beard", "Eyeglasses"]
-    plot_correlation_subset(labels, "sub1")
-    labels = ["Young", "Gray_Hair", "No_Beard", "Male"]
-    plot_correlation_subset(labels, "sub2")
+    plot_correlation()
+    # labels = ["Young", "Smiling", "No_Beard", "Eyeglasses"]
+    # plot_correlation_subset(labels, "sub1")
+    # labels = ["Young", "Gray_Hair", "No_Beard", "Male"]
+    # plot_correlation_subset(labels, "sub2")
