@@ -134,19 +134,22 @@ def check_hardcoded():
     print(df[["PSNR", "SSIM", "LPIPS"]].head(5).describe())
     print(df[["PSNR", "SSIM", "LPIPS"]].tail(5).describe())
 
+    print("5 head with multi")
     print(df["LPIPS"].head(5).corr(df["multi"]))
     print(df["PSNR"].head(5).corr(df["multi"]))
     print(df["SSIM"].head(5).corr(df["multi"]))
 
+    print("13 tail with multi")
     print(df["LPIPS"].tail(13).corr(df["multi"]))
     print(df["PSNR"].tail(13).corr(df["multi"]))
     print(df["SSIM"].tail(13).corr(df["multi"]))
 
-    print(df["LPIPS"].tail(20).corr(df["multi"]))
+    print("overall with multi")
+    print(df["LPIPS"].corr(df["multi"]))
     print(df["PSNR"].corr(df["multi"]))
     print(df["SSIM"].corr(df["multi"]))
 
-    print(df.describe())
+    print(df[["PSNR_s", "PSNR_m", "SSIM_s", "SSIM_m", "LPIPS_s", "LPIPS_m"]].describe())
 
 
 if __name__ == "__main__":

@@ -106,7 +106,7 @@ def evaluate_scaling_vs_change_ratio_bottleneck(
             elif orders is not None:
                 coeff = torch.zeros(len(attrs)).to(DEVICE)
                 less_orders = [o for o in orders[k] if o in coeff_map]
-                coeff = torch.tensor(all_coeffs[k][less_orders], dtype=torch.float).to(
+                coeff = torch.tensor(all_coeffs[k][coeff_map], dtype=torch.float).to(
                     DEVICE
                 )
             else:
@@ -150,15 +150,17 @@ def overall_change_ratio_bottleneck():
 
     for conf in configs:
         multi_rates, _, _ = evaluate_scaling_vs_change_ratio_bottleneck(
-            config_name=conf, orders=orders
+            config_name=conf, orders=orders, n_samples=300
         )
         rates.append(multi_rates)
 
     plot_ratios(
         ratios=rates,
-        labels=configs,
+        labels=[f"{i}" for i in [512, 512*3, 512*6]],
         scales=torch.linspace(0, scale, n_steps),
         output_dir=save_dir,
+        title="Target Change Ratio for different w sizes",
+        filename="ablation_size.png"
     )
 
 
