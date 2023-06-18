@@ -144,13 +144,13 @@ def get_diff_examples(scores, diff_type="ratio", idx_override=None, coeff_overri
 
             # Write info about performance for each result in the titles
             if multi:
-                title = f"Target Change (%): {m_rates[k]:.2} \n" \
-                        f"Identity (MSE): {m_recons[k]:.2} \n" \
-                        f"Attr Unchanged (%): {m_regs[k]:.2} \n Multi"
+                title = r"$\bf{CR}$" + f": {m_rates[k]:.2}, " \
+                        r"$\bf{IP}$" + f": {m_recons[k]:.2}, " \
+                        r"$\bf{AP}$" + f": {m_regs[k]:.2} \n Multi"
             else:
-                title = f"Target Change (%): {s_rates[k]:.2} \n" \
-                        f"Identity (MSE): {s_recons[k]:.2} \n" \
-                        f"Attr Unchanged (%): {s_regs[k]:.2}\n Single"
+                title = r"$\bf{CR}$" + f": {s_rates[k]:.2}, " \
+                        r"$\bf{IP}$" + f": {s_recons[k]:.2}, " \
+                        r"$\bf{AP}$" + f": {s_regs[k]:.2}\n Single"
 
             titles.append(title)
 
