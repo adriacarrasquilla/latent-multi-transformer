@@ -427,3 +427,30 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     plt.savefig(output_dir + "performance.png")
     # plt.clf()
 
+
+def plot_random_images(images, coeff, attrs, save_dir):
+
+    fig, axs = plt.subplots(nrows=2, ncols=len(images), figsize=(5*len(images), 10))
+
+    for i, image_pair in enumerate(images):
+        for j, image in enumerate(image_pair):
+            img_tensor = clip_img(image)[0]
+            ndarr = img_tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
+            im = Image.fromarray(ndarr)
+            axs[j][i].imshow(im)
+            axs[j][i].axis('off')
+
+        if coeff[i] == 0:
+            notation = ""
+        else:
+            notation = "+" if coeff[i] > 0 else "-"
+        axs[0][i].set_title(attrs[i] + notation, fontsize=20)
+
+
+    fig.text(0.11, 0.67, 'Multi', va='center', fontsize=20, rotation="vertical")
+    fig.text(0.11, 0.3, 'Single', va='center', fontsize=20, rotation="vertical")
+    plt.subplots_adjust(wspace=0.0, hspace=0.0)
+    plt.savefig(save_dir)
+    plt.close()
+    fig.clf()
+    plt.clf()

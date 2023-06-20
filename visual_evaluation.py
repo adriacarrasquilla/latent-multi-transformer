@@ -1,6 +1,7 @@
 import argparse
 import os
 import gc
+from matplotlib import sys
 import numpy as np
 import torch
 import yaml
@@ -8,7 +9,7 @@ from rich.progress import track
 
 from datasets import *
 from utils.functions import *
-from plot_evaluation import plot_images, plot_images_table
+from plot_evaluation import plot_images, plot_images_table, plot_random_images
 from evaluation import apply_transformation, get_ratios_from_sample, get_trainer, evaluate_scaling_vs_change_ratio
 
 from PIL import Image
@@ -22,7 +23,7 @@ Image.MAX_IMAGE_PIXELS = None
 DEVICE = torch.device("cuda")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", type=str, default="new_train", help="Path to the config file.")
+parser.add_argument("--config", type=str, default="main_train", help="Path to the config file.")
 parser.add_argument("--label_file", type=str, default="./data/celebahq_anno.npy", help="label file path")
 parser.add_argument("--stylegan_model_path", type=str,default="./pixel2style2pixel/pretrained_models/psp_ffhq_encode.pt",help="stylegan model path")
 parser.add_argument("--classifier_model_path", type=str, default="./models/latent_classifier_epoch_20.pth", help="pretrained attribute classifier")
@@ -44,10 +45,11 @@ os.makedirs(save_dir, exist_ok=True)
 
 log_dir = os.path.join(opts.log_path, opts.config) + "/"
 config = yaml.safe_load(open("./configs/" + opts.config + ".yaml", "r"))
+examples_dir = save_dir + "examples/"
 
 attrs = config["attr"].split(",")
 attr_num = [ATTR_TO_NUM[a] for a in attrs]
-
+local_attr_num = {attr:i for i, attr in enumerate(attrs)}
 
 def get_individual_scores(coeff_i):
     single_rates, single_recons, single_regs = evaluate_scaling_vs_change_ratio(multi=False, return_mean=False, n_samples=n_samples,
@@ -88,7 +90,6 @@ def get_diff_idx(all_coeffs, scores, diff_type="ratio"):
 
 def get_diff_examples(scores, diff_type="ratio", idx_override=None, coeff_override=None):
     # Output directory
-    examples_dir = save_dir + "examples/"
     os.makedirs(examples_dir, exist_ok=True)
 
     # Evaluate models
@@ -176,5 +177,63 @@ def get_all_diff_types_examples():
         get_diff_examples(scores, diff_type=diff_type)
 
 
+def get_sequential_examples():
+    # idxs = [12, 45, 119, 200]
+    # idxs = [265, 82, 379, 427, 601]
+    idxs = [16, 48, 247, 143, 220]
+
+    all_coeffs = np.load(testdata_dir + "labels/all.npy")
+    all_attrs_names = [
+        ["Smiling", "Pale_Skin", "Young", "Arched_Eyebrows", "Narrow_Eyes", "Bushy_Eyebrows"],
+        ["No_Beard", "Bangs", "Blond_Hair", "Attractive", "Male", "Wearing_Lipstick"],
+        ["Young", "Male", "No_Beard", "Chubby", "Pale_Skin", "Smiling"],
+        ["Bald", "Eyeglasses", "Wearing_Lipstick", "High_Cheekbones", "Arched_Eyebrows", "Big_Lips"],
+        ["High_Cheekbones", "Blond_Hair","Big_Lips", "Young", "Wavy_Hair", "Smiling"],
+    ]
+
+    for k, attrs_names in zip(idxs, all_attrs_names):
+        attrs_l = [local_attr_num[attr] for attr in attrs_names]
+        w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
+        w_0 = torch.tensor(w_0).to(DEVICE)
+        coeff_s = torch.zeros(all_coeffs[k].shape).to(DEVICE)
+        coeff_m = torch.zeros(all_coeffs[k].shape).to(DEVICE)
+
+        trainer = get_trainer(multi=True)
+        x_0, _ = trainer.StyleGAN([w_0], input_is_latent=True, randomize_noise=False)
+        x_1 = x_0
+        img_l = [[x_0, x_0]]
+
+        coeff_l = [0]
+
+
+        for attr_id in attrs_l:
+            coeff_s[attr_id] = all_coeffs[k][attr_id]
+            coeff_m[attr_id] = all_coeffs[k][attr_id] # * 1.1
+            coeff_l.append(all_coeffs[k][attr_id])
+
+            img_l.append([])
+
+            # Generate multi and single transformations
+            for multi in [True, False]:
+                trainer = get_trainer(multi=multi)
+
+                coeff = coeff_m if multi else coeff_s
+
+                w_1 = apply_transformation(trainer=trainer, w_0=w_0, coeff=coeff, multi=multi)
+
+                # Convert latent space to image
+                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
+                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
+                x_1 = x_1.to("cpu")
+                img_l[-1].append(x_1.data)
+
+
+        filename = f"sequential_{k}.jpg"
+
+        plot_random_images(img_l, save_dir=examples_dir + filename, coeff=coeff_l, attrs=["Original"] + attrs_names)
+
+
+
 if __name__ == "__main__":
-    get_all_diff_types_examples()
+    # get_all_diff_types_examples()
+    get_sequential_examples()
