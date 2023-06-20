@@ -1,29 +1,19 @@
-# Copyright (c) 2021, InterDigital R&D France. All rights reserved.
-#
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
 
 import argparse
 import os
-import gc
-from lpips import lpips
 import numpy as np
-from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 import torch
 import yaml
 
-from time import time
 from rich.progress import track
-
-from torchvision import utils
-
-import matplotlib.pyplot as plt
 
 from datasets import *
 from trainer import Trainer as MultiTrainer
 from original_trainer import Trainer as SingleTrainer
 from utils.functions import *
-from plot_evaluation import plot_images, plot_nattr_evolution_fixed_coeff, plot_nattr_evolution_fixed_attr, plot_ratios, plot_ratios_stacked, plot_recon_vs_reg, plot_recon_vs_reg_row
+from plot_evaluation import plot_nattr_evolution_fixed_coeff, plot_nattr_evolution_fixed_attr, plot_ratios, plot_ratios_stacked, plot_recon_vs_reg, plot_recon_vs_reg_row
 
 from PIL import Image
 from constants import ATTR_TO_NUM
@@ -84,7 +74,7 @@ def apply_transformation(trainer, w_0, coeff, attrs=attrs, multi=True):
         # Multi trainer prediction
         w_1 = trainer.T_net(
             w_0.view(w_0.size(0), -1), coeff.unsqueeze(0).to(DEVICE), scaling=1.5
-        )  # TODO: remove scaling
+        )
         w_1 = w_1.view(w_0.size())
 
     else:
@@ -104,6 +94,7 @@ def apply_transformation(trainer, w_0, coeff, attrs=attrs, multi=True):
             w_prev = w_1
 
     return w_1
+
 
 def get_ratios_from_sample(w_0, w_1, coeff, trainer):
     predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
@@ -187,78 +178,6 @@ def evaluate_scaling_vs_change_ratio(multi=True, attr=None, attr_i=None, orders=
         return class_r, recons, attr_r
 
 
-def evaluate_image_quality(multi=True, attr=None, attr_i=None, orders=None, n_samples=n_samples,
-                           return_mean=True, n_steps=n_steps, scale=scale):
-    with torch.no_grad():
-        # Initialize trainer
-        trainer = get_trainer(multi)
-
-        if (attr and attr_i is not None) or orders is not None:
-            all_coeffs = np.load(testdata_dir + "labels/all.npy")
-            extra = f'for {attr}' if orders is None else f'for {orders.shape[1]} attrs'
-        else:
-            all_coeffs = np.load(testdata_dir + "labels/overall.npy")
-            extra = ""
-
-        psnr_scores = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
-        ssim_scores = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
-        lpips_scores = np.zeros((n_samples, torch.linspace(0, scale, n_steps).shape[0]))
-
-        track_title = f"Evaluating {'multi' if multi else 'single'} model " + extra
-
-        for k in track(range(n_samples), track_title):
-            w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
-            w_0 = torch.tensor(w_0).to(DEVICE)
-
-            predict_lbl_0 = trainer.Latent_Classifier(w_0.view(w_0.size(0), -1))
-            lbl_0 = torch.sigmoid(predict_lbl_0)
-            attr_pb_0 = lbl_0[:, attr_num]
-
-            # Wether we are using all the coefficients or one attribute at a time
-            if attr and attr_i is not None:
-                coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
-                coeff[attr_i] = all_coeffs[k][attr_i]
-            elif orders is not None:
-                coeff = torch.zeros(all_coeffs[k].shape).to(DEVICE)
-                coeff[orders[k]] = torch.tensor(all_coeffs[k][orders[k]], dtype=torch.float).to(DEVICE)
-            else:
-                coeff = torch.tensor(all_coeffs[k]).to(DEVICE)
-
-            scales = torch.linspace(0, scale, n_steps).to(DEVICE)
-            range_coeffs = coeff * scales.reshape(-1, 1)
-            for i, alpha in enumerate(range_coeffs):
-                w_1 = apply_transformation(
-                    trainer=trainer, w_0=w_0, coeff=alpha, multi=multi
-                )
-
-                w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
-                x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
-                x_0, _ = trainer.StyleGAN([w_0], input_is_latent=True, randomize_noise=False)
-
-                img_tensor = clip_img(x_1)[0]
-                img_t = img_tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
-                img_tensor = clip_img(x_0)[0]
-                img_o = img_tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
-
-
-                psnr_scores[k][i] = peak_signal_noise_ratio(img_o, img_t)
-                ssim_scores[k][i] = structural_similarity(img_o, img_t, multichannel=True, channel_axis=2)
-                # lpips_model = lpips.LPIPS(net='vgg').to('cpu')
-                # lpips_scores[k][i] = lpips_model.forward(torch.tensor(img_o).unsqueeze(0).permute(0, 3, 1, 2),
-                                                         # torch.tensor(img_t).unsqueeze(0).permute(0, 3, 1, 2)).item()
-
-        if return_mean:
-            psnr = psnr_scores.mean(axis=0)
-            ssim = ssim_scores.mean(axis=0)
-            lpips_s = lpips_scores.mean(axis=0)
-        else:
-            psnr = psnr_scores
-            ssim = ssim_scores
-            lpips_s = lpips_scores
-
-        return psnr, ssim, lpips_s
-
-
 def overall_change_ratio_single_vs_multi():
     """
     Compute the overall change ratio and compare it for multi and single sequential transformers
@@ -302,27 +221,6 @@ def individual_attr_change_ratio_single_vs_multi():
             sel_recons.append([single_recons, multi_recons])
             sel_regs.append([single_regs, multi_regs])
 
-
-        # plot_ratios(
-        #     ratios=[single_rates, multi_rates],
-        #     labels=labels,
-        #     scales=torch.linspace(0, scale, n_steps),
-        #     output_dir=save_dir + "indiv_ratio/",
-        #     title=f"Target change ratio for {attr}",
-        #     filename=f"ratio_{attr}.png",
-        #     figsize=(6,6)
-        # )
-        # plot_recon_vs_reg(
-        #     ratios=[single_rates, multi_rates],
-        #     recons=[single_recons, multi_recons],
-        #     regs=[single_regs, multi_regs],
-        #     labels=labels,
-        #     scales=torch.linspace(0, scale, n_steps),
-        #     output_dir=save_dir + "indiv_recon_vs_reg/",
-        #     title=f"Target change ratio for {attr}",
-        #     filename=f"recon_vs_reg_{attr}.png",
-        # )
-
     plot_ratios_stacked(
         single_ratios=all_single,
         multi_ratios=all_multi,
@@ -331,6 +229,7 @@ def individual_attr_change_ratio_single_vs_multi():
         output_dir=save_dir + "indiv_ratio/",
     )
     plot_recon_vs_reg_row(all_regs=sel_regs, all_ratios=sel_ratios, all_recons=sel_recons, labels=labels, titles=attr_selected, filename="individual_ratio_vs_scores.png")
+
 
 def different_nattrs_ratio_single_vs_multi(compute=False):
     orders = np.load(testdata_dir + "labels/attr_order.npy")
@@ -393,11 +292,6 @@ def nattrs_ratio_progression_single_vs_multi():
         output_dir=save_dir + "n_attrs_evolution/",
         filename="fixed_coeff.png",
     )
-
-def quality_eval():
-    psnr_multi, ssim_multi, lpips_s_multi= evaluate_image_quality()
-    psnr_single, ssim_single, lpips_s_single = evaluate_image_quality(multi=False)
-    # TODO: plot
 
 
 if __name__ == "__main__":

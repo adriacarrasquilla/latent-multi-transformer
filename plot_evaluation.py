@@ -2,7 +2,6 @@ import os
 
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import torch
 import textwrap
@@ -136,14 +135,6 @@ def plot_ratios_stacked(single_ratios, multi_ratios, attrs, scales, output_dir="
 
     # Set common x-axis label
     fig.text(0.5, 0.06, 'Target Change Ratio', ha='center', fontsize=12)
-
-    # legend_handles = [
-    #     mpatches.Patch(color='blue', label='Single'),
-    #     mpatches.Patch(color='orange', label='Multi')
-    # ]
-    #
-    # # Create a general legend
-    # fig.legend(handles=legend_handles)
 
     # Adjust the spacing between subplots
     fig.subplots_adjust(wspace=0.2, hspace=0.4)
@@ -387,7 +378,7 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     n_attrs = list(range(0,21,4))
     n_attrs[0] = 1
 
-    fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+    _, ax = plt.subplots(1, 3, figsize=(12, 4))
 
     # time plot
     # plt.figure(figsize=(5,5))
@@ -398,11 +389,8 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     ax[0].set_xlabel("Number of attributes learned", fontsize=10)
     ax[0].set_ylabel("Mean time per iteration (s)", fontsize=10)
     ax[0].set_xticks(n_attrs)
-    # plt.savefig(output_dir + "time.png")
-    # plt.clf()
 
     # memory plot
-    # plt.figure(figsize=(5,5))
     for mem, label in zip(memories, labels):
         ax[1].plot(n_attrs, mem, label=label, marker='.')
     ax[1].set_title("Peak GPU memory usage", fontsize=12)
@@ -410,11 +398,8 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     ax[1].set_xlabel("Number of attributes learned", fontsize=10)
     ax[1].set_ylabel("Peak GPU memory usage (MB)", fontsize=10)
     ax[1].set_xticks(n_attrs)
-    # plt.savefig(output_dir + "memory.png")
-    # plt.clf()
 
     # file plot
-    # plt.figure(figsize=(5,5))
     for file, label in zip(files, labels):
         ax[2].plot(n_attrs, file, label=label, marker='.')
     ax[2].set_title("Total model file output size", fontsize=12)
@@ -422,10 +407,8 @@ def plot_performance(times, memories, files, labels, output_dir="outputs/perform
     ax[2].set_xlabel("Number of attributes learned", fontsize=10)
     ax[2].set_ylabel("Total model size (MB)", fontsize=10)
     ax[2].set_xticks(n_attrs)
-    # plt.savefig(output_dir + "file.png")
     plt.tight_layout(pad=2.5)
     plt.savefig(output_dir + "performance.png")
-    # plt.clf()
 
 
 def plot_random_images(images, coeff, attrs, save_dir):

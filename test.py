@@ -96,4 +96,3 @@ with torch.no_grad():
 
         out = torch.cat(img_l, dim=3)
         utils.save_image(clip_img(out), save_dir + attr + '_' + '%05d.jpg'%idx)
-        # exit()  # uncomment if you only want the first image

@@ -5,11 +5,10 @@ import os
 
 import yaml
 
-from constants import ATTR_TO_NUM, DEVICE, NATTRS_NUM_TO_IDX, NUM_TO_ATTR
-from plot_evaluation import plot_corr_vs_uncorr, plot_ratios, plot_ratios_row, plot_recon_vs_reg, plot_recon_vs_reg_row
+from constants import ATTR_TO_NUM, DEVICE
+from plot_evaluation import plot_ratios_row, plot_recon_vs_reg_row
 from evaluation import apply_transformation, get_trainer
-from utils.functions import clip_img, get_attr_change, get_target_change
-from torchvision import utils
+from utils.functions import get_attr_change, get_target_change
 
 log_dir_single = os.path.join("./logs", "original_train") + "/"
 save_dir = os.path.join("./outputs/evaluation/n_attrs") + "/"
@@ -42,8 +41,6 @@ def evaluate_scaling_vs_change_ratio_nattrs(
 
         track_title = f"Evaluating {'multi' if multi else 'single'} model"
 
-        # attr_ids = [NATTRS_NUM_TO_IDX[NUM_TO_ATTR[a]] for a in attr_num]
-
         for k in track(range(n_samples), track_title):
             w_0 = np.load(testdata_dir + "latent_code_%05d.npy" % k)
             w_0 = torch.tensor(w_0).to(DEVICE)
@@ -65,8 +62,6 @@ def evaluate_scaling_vs_change_ratio_nattrs(
             corr_vector = trainer.get_correlation_multi(attr_num, coeffs=coeff)
             correlated_mask = (0 < corr_vector) & ( corr_vector < 0.7)
             uncorrelated_mask = corr_vector >= 0.7
-            # print(f"correlated: {correlated_mask}")
-            # print(f"not correlated: {uncorrelated_mask}")
 
             scales = torch.linspace(0, scale, n_steps).to(DEVICE)
             range_coeffs = coeff * scales.reshape(-1, 1)
@@ -74,10 +69,6 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                 w_1 = apply_transformation(
                     trainer=trainer, w_0=w_0, coeff=alpha, multi=multi, attrs=attrs
                 )
-                # if k % 100 == 0:
-                #     w_1 = torch.cat((w_1[:,:11,:], w_0[:,11:,:]), 1)
-                #     x_1, _ = trainer.StyleGAN([w_1], input_is_latent=True, randomize_noise=False)
-                #     utils.save_image(clip_img(x_1), save_dir + conf_name + ("_multi_" if multi else "_single_") + str(k) + '.jpg')
 
                 predict_lbl_1 = trainer.Latent_Classifier(w_1.view(w_0.size(0), -1))
                 lbl_1 = torch.sigmoid(predict_lbl_1)
@@ -103,8 +94,6 @@ def evaluate_scaling_vs_change_ratio_nattrs(
                     attr_ratios_uncorr[k][i] = (attr_ratios_all[current_uncorrelated_mask].sum() / attr_ratios_all[current_uncorrelated_mask].size(0))
                 else:
                     attr_ratios_corr[k][i] = 1
-
-                # attr_ratios_uncorr[k][i] = attr_ratios_all[uncorrelated_mask].mean(axis=0)
 
         if return_mean:
             class_r = class_ratios.mean(axis=0)
@@ -156,16 +145,6 @@ def n_attrs_evaluation(compute=False):
         np.save("./outputs/evaluation/all_recons.npy", all_recons)
         np.save("./outputs/evaluation/all_regs.npy", all_regs)
 
-            # plot_corr_vs_uncorr(
-            #     ratios=[single_rates, multi_rates],
-            #     corr=[single_corr, multi_corr],
-            #     uncorr=[single_uncorr, multi_uncorr],
-            #     labels=labels,
-            #     scales=torch.linspace(0, scale, n_steps),
-            #     output_dir=save_dir,
-            #     title=f"Correlated and uncorrelated attr change: {c_path}",
-            #     filename=f"{c_path}_corr_vs_uncorr.png",
-            # )
     else:
         all_ratios = np.load("./outputs/evaluation/all_ratios.npy")
         all_recons = np.load("./outputs/evaluation/all_recons.npy")

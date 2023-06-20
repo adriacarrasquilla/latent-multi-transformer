@@ -6,8 +6,8 @@ import seaborn as sns
 import textwrap
 
 
-subj_dir = "./data/subjective/form/"
-out_dir = "./outputs/evaluation/subjective/"
+subj_dir = "../data/subjective/form/"
+out_dir = "../outputs/evaluation/subjective/"
 os.makedirs(out_dir, exist_ok=True)
 
 def get_all_subjective_results():
@@ -93,8 +93,8 @@ def get_all_subjective_results():
 
 
 def summary_image():
-    img_dir = "./data/subjective/best/img/"
-    txt_dir = "./data/subjective/best/txt/"
+    img_dir = "../data/subjective/best/img/"
+    txt_dir = "../data/subjective/best/txt/"
     imgs = ["_original.jpg", "_single.jpg", "_multi.jpg"]
     column_titles = [" ", "Original", "Single", "Multi", "Attributes Modified"]
 

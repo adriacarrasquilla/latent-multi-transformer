@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import pandas as pd
 
-subj_dir = "./data/subjective/form/"
+subj_dir = "../data/subjective/form/"
 
 def compute_realism_scores():
     answers = pd.read_csv(subj_dir + "answers.csv")
@@ -43,13 +43,13 @@ def compute_realism_scores():
     diffs_ssim = {}
     diffs_lpips = {}
     for i in range(1,21):
-        original_image_path = f"./data/subjective/best/img/{i}_original.jpg"
+        original_image_path = f"../data/subjective/best/img/{i}_original.jpg"
         original_image = Image.open(original_image_path)
 
-        transformed_image_path_1 = f"./data/subjective/best/img/{i}_single.jpg"
+        transformed_image_path_1 = f"../data/subjective/best/img/{i}_single.jpg"
         transformed_image_1 = Image.open(transformed_image_path_1)
 
-        transformed_image_path_2 = f"./data/subjective/best/img/{i}_multi.jpg"
+        transformed_image_path_2 = f"../data/subjective/best/img/{i}_multi.jpg"
         transformed_image_2 = Image.open(transformed_image_path_2)
 
         original = np.array(original_image)
@@ -121,11 +121,11 @@ def compute_realism_scores():
 
     print(question_pct)
 
-    question_pct.to_csv("./data/subjective/form/quantitative_cmp.csv")
+    question_pct.to_csv("../data/subjective/form/quantitative_cmp.csv")
 
 
 def check_hardcoded():
-    df = pd.read_csv("./data/subjective/form/quantitative_cmp.csv")
+    df = pd.read_csv("../data/subjective/form/quantitative_cmp.csv")
     df["LPIPS"] = df["LPIPS"] * -1
     df["pct_diff"] = df["multi"] - df["single"]
     df = df.sort_values('pct_diff', ascending=False)

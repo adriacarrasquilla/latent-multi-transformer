@@ -1,7 +1,6 @@
-# Copyright (c) 2021, InterDigital R&D France. All rights reserved.
-#
 # This source code is made available under the license found in the
 # LICENSE.txt in the root directory of this source tree.
+
 import matplotlib.pyplot as plt
 import argparse
 import os

@@ -10,8 +10,6 @@ from evaluation import apply_transformation, get_trainer
 from torchvision import utils
 
 from nets import LCNet
-from trainer import Trainer as MultiTrainer
-from original_trainer import Trainer as SingleTrainer
 from utils.functions import clip_img
 
 random.seed(1)
@@ -166,8 +164,9 @@ def subjective_form_assets(n_imgs=20, AB=False):
         print("-------------------------------------------------------------------")
 
 
-# individual_dataset()
-overall_dataset(name=conf_file)
-# attributes_order_dataset()
-# subjective_study()
-# subjective_form_assets()
+if __name__ == "__main__":
+    # individual_dataset()
+    overall_dataset(name=conf_file)
+    # attributes_order_dataset()
+    # subjective_study()
+    # subjective_form_assets()
