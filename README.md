@@ -94,7 +94,7 @@ All the evaluation methods and experiments are organized in different python fil
 * [`performance.py`](performance.py): Provides all the methods required to execute the performance experiments.
 * [`plot_evaluation.py`](plot_evaluation.py): Provides all the methods related to plotting results for all the evaluation methods and experiments.
 * [`visual_evaluation.py`](visual_evaluation.py): Provides all the methods to execute the visual comparison experiments.
-* [subjective_eval](subjective_eval/): Additional methods used in the subjective study, for both gathering the study results and computing the evaluation comparison with objective metrics.
+* [`subjective_eval/`](subjective_eval/): Additional methods used in the subjective study, for both gathering the study results and computing the evaluation comparison with objective metrics.
 
 All experiment files are intended to be modified internally and execute them with `python experiment_file.py`. Main modifications needed might be the hyperparamenters (such as number of iterations for the test set) or which function calls to execute, in case of non wanting to execute all the experiments at once.
 
