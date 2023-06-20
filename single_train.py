@@ -75,7 +75,6 @@ dataset_A = LatentDataset(opts.latent_path, opts.label_file, training_set=True)
 loader_A = data.DataLoader(dataset_A, batch_size=batch_size, shuffle=True)
 
 print('Start training!')
-times = []
 for attr in attr_l:
     print(f"Training attribute {attr}")
 
@@ -88,20 +87,16 @@ for attr in attr_l:
     trainer.to(DEVICE)
 
     for n_epoch in range(epochs):
-        t = time.time()
 
         for n_iter, list_A in enumerate(loader_A):
             w_A, lbl_A = list_A
             w_A, lbl_A = w_A.to(DEVICE), lbl_A.to(DEVICE)
             trainer.update(w_A, None, n_iter)
 
-            # if (total_iter+1) % config['log_iter'] == 0:
-            #     trainer.log_loss(logger, total_iter)
-            # if (total_iter+1) % config['image_log_iter'] == 0:
-            #     trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.log_image_verbose(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.save_image(log_dir, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
-                # trainer.log_image(logger, w[0].unsqueeze(0), total_iter)  # Uncomment if you want to check results always in the same sample
+            if (total_iter+1) % config['log_iter'] == 0:
+                trainer.log_loss(logger, total_iter)
+            if (total_iter+1) % config['image_log_iter'] == 0:
+                trainer.log_image(logger, w[total_iter%dataset_A.length].unsqueeze(0), total_iter)
 
             total_iter += 1
 
@@ -109,8 +104,3 @@ for attr in attr_l:
                 break
 
         trainer.save_model(log_dir)
-        e_time = time.time() - t
-        times.append(e_time)
-        print(f"Time for epoch {n_epoch}: {e_time}")
-
-    print(f"Mean time per epochs (over {epochs}): {np.mean(times)}")

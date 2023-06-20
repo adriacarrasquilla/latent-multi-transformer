@@ -2,6 +2,8 @@
 
 Official implementation for the Master Thesis project "Latent Multi-Attribute Transformer for Face Editing in Images."
 
+![](figures/proposed_arch.png)
+
 ## Installation Instructions
 
 ### Dependencies
@@ -68,3 +70,57 @@ If you want to reproduce the results of the baseline paper and compare it with o
 
 
 ## Usage Instructions
+### Training
+You can modify the training options of the config file in the directory `configs/`. The field `attr` defines the list of attributes to be trained simultaneously. You can use:
+
+```
+python train.py --config main_train 
+```
+
+or, if you want to train the Single Models from the baseline approach sequentially instead, you can then use:
+
+```
+python single_train.py --config 001 
+```
+
+### Testing and Experiments
+All the evaluation methods and experiments are organized in different python files:
+* [`ablation_evaluation.py`](ablation_evaluation.py): Explores the results of different models using different compression rates for the Dimension Reduction/Upscaling Blocks.
+* [`data_exploration.py`](data_exploration.py): Collects different methods to explore and study the data distribution from the CelebA-HQ dataset
+* [`evaluation.py`](evaluation.py): provides the main global methods that allow us to evaluate the models and extract metrics from both our approach and the baseline. It also provides some main experiments such as the overall change ratio, individual change ratio and change ratio vs identity and attribute preservation.
+* [`loss_evaluation.py`](loss_evaluation.py): Collects methods for comparing the results of the models considering the loss values instead of the evaluation metrics we used.
+* [`nattrs_evaluation.py`](nattrs_evaluation.py): Provides the methods required to execute the n attributes experiments, where different models learn different sized subsets of attributes.
+* [`org_evaluation.py`](org_evaluation.py): Original baseline script for evaluation
+* [`performance.py`](performance.py): Provides all the methods required to execute the performance experiments.
+* [`plot_evaluation.py`](plot_evaluation.py): Provides all the methods related to plotting results for all the evaluation methods and experiments.
+* [`visual_evaluation.py`](visual_evaluation.py): Provides all the methods to execute the visual comparison experiments.
+
+All experiment files are intended to be modified internally and execute them with `python experiment_file.py`. Main modifications needed might be the hyperparamenters (such as number of iterations for the test set) or which function calls to execute, in case of non wanting to execute all the experiments at once.
+
+
+### User Interface
+In this project we also provide a User Interface built with [gradio](https://www.gradio.app/). The main entrypoint for the application is the [`ui.py`](ui.py) file. It only needs to be specified which Multi-Attribute Transformer model to be used by modifying the internal global variable `experiment`. To launch it simply use:
+
+```
+python ui.py
+```
+
+or, if contributing to the ui and making changes to its source code, use the following to let gradio automatically refresh the preview on saved changes:
+
+```
+gradio ui.py
+```
+
+Here is a description on how to use the different components:
+* **Image ID Slider**: It allows to choose any image from the entired training set or filtered version of it.
+* **Filter Box**: It allows to add one or multiple attributes to be filtered from the training set. It can consider the samples that have present the attribute selected or those that do not have it, and any combination of multiple attributes.
+* **Attribute Sliders**: There are as many as the number of attributes the model has learned. Choose a negative value to remove the attribute from the image, a positive value to add it or keep it to 0 to preserve the attribute unmodified.
+* **Reset Sliders**: set all the attribute sliders to 0.
+* **Custom Image Input**: it allows the user to introduce any latent representaton of an image, to be modified as it was from the training set. This overrides the ImageID slider. Only latent representation is allowed, if using a custom png image you will need to encode it first.
+* **Original vs Transformed Display**: it shows how the original image looks like and the transformation applied after clicking on the button **Generate**
+* _[debugging]_ **Loss Values**: it shows the loss value for each individual loss function, including the total accumulated one
+* _[debugging]_ **Latent Classifier Comparisson Table**: it shows the output of the Latent Classifier for both the original and transformed latent representations. The attributes to be displayed can be filtered using the multiple choice listbox above. By default, all learned attributes are displayed.
+
+
+The UI will look like following, in your browser:
+![](figures/ui.png)
